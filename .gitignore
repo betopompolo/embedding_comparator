@@ -1,0 +1,9 @@
+datasets
+/.idea/
+src/experiment_report.py
+resources/.DS_Store
+.DS_Store
+src/__pycache__/
+logs/
+*.tfrecords
+model/
