@@ -33,6 +33,7 @@ class EmbeddingGenerator:
 
         return target_embedding
     
+    # TODO: Replace this with generate_code (use generate_text as reference)
     def generate_code(self, pairs: List[CodeCommentPair]) -> tf.Tensor:
         code_embeddings = self._get_embeddings(
             [pair.code for pair in pairs],
@@ -42,9 +43,19 @@ class EmbeddingGenerator:
                 
         return code_embeddings
     
+    # TODO: Replace this with generate_text
     def generate_comment(self, pairs: List[CodeCommentPair]) -> tf.Tensor:
         text_embeddings = self._get_embeddings(
             [pair.comment for pair in pairs],
+            tokenizer=self.text_tokenizer,
+            model=self.text_embedding_model,
+        )
+                
+        return text_embeddings
+    
+    def generate_text(self, texts: List[str]) -> tf.Tensor:
+        text_embeddings = self._get_embeddings(
+            texts,
             tokenizer=self.text_tokenizer,
             model=self.text_embedding_model,
         )

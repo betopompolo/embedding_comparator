@@ -12,6 +12,8 @@ import tensorflow as tf
 import orjson
 from transformers import AutoTokenizer, TFAutoModel, logging, AutoConfig
 logging.set_verbosity_error()
+import numpy as np
+np.set_printoptions(precision=3)
 
 """
 Variables
@@ -59,12 +61,12 @@ embedding_generator = EmbeddingGenerator(
 """
 Generating an embeddings dataset from the CodeSearchNet dataset
 """
-def map_pair_from_jsonl(jsonl: str) -> CodeCommentPair:
-    def parse_tokens(tokens: list[str]) -> str:
-        parsed=' '.join(tokens).replace('\n',' ')
-        parsed=' '.join(parsed.strip().split())
-        return parsed
-    
+def parse_tokens(tokens: list[str]) -> str:
+  parsed=' '.join(tokens).replace('\n',' ')
+  parsed=' '.join(parsed.strip().split())
+  return parsed
+
+def map_pair_from_jsonl(jsonl: str) -> CodeCommentPair:    
     json = orjson.loads(jsonl)
     pair = CodeCommentPair(
         id=json['url'],
@@ -157,20 +159,59 @@ def prepare_sample_for_training(code_emb, comment_emb, target_emb, _pairs_ids):
 # tf_dataset = tf.data.TFRecordDataset(tf_dataset_path).map(parse_example).map(prepare_sample_for_training)
 # model = EmbeddingComparator()
 # model.fit(tf_dataset, batch_size=batch_size)
-tf_dataset = embeddings_dataset.map(prepare_sample_for_training)
+# tf_dataset = embeddings_dataset.map(prepare_sample_for_training)
 model = EmbeddingComparator()
-model.fit(tf_dataset, batch_size=batch_size)
-model.save()
+# model.fit(tf_dataset, batch_size=batch_size)
+# model.save()
 
 """
-Make predictions with the model
+Creating the results ranking
 """
-# def prepare_sample_for_prediction(code_emb, comment_emb, target_emb):
-#     input = tf.concat([code_emb, comment_emb], axis=1)
+def map_from_csv(value: str):
+  splitted = value.split(',')
+  if len(splitted) < 4:
+      return None
+  
+  [language, query, id, relevance, *notes] = splitted
+  
+  return {
+    'id': id,
+    'language': language,
+    'query': query,
+    'relevance': relevance,
+    'notes': " ".join(notes),
+  }
 
-#     return tf.ensure_shape(input, (None, seq_len * hidden_size * 2))
+def code_embedding_gen():
+  for batch_lines in lines.take(dataset_samples_count).batch(batch_size):
+    pairs = [map_pair_from_jsonl(line.numpy().decode('utf-8')) for line in batch_lines]
 
-# model.load()
-# test_dataset = embeddings_dataset.map(prepare_sample_for_prediction).take(1)
-# for item in test_dataset:
-#     print(model.predict(item))
+    yield tf.reshape(embedding_generator.generate_code(pairs), (batch_size, -1))
+
+code_embeddings_dataset = tf.data.Dataset.from_generator(code_embedding_gen, output_signature=(embedding_spec))
+
+queries_count = 2880
+query_lines = tf.data.TextLineDataset('datasets/filtered_queries.csv').take(queries_count)
+
+def concat_embeddings(code_emb, comment_emb):
+  return tf.concat([code_emb, comment_emb], axis=1)
+
+def code_query_gen():
+  for batch_lines in query_lines.batch(batch_size):
+    batch_data = list(filter(lambda x: x != None, [map_from_csv(line.numpy().decode('utf-8')) for line in batch_lines])) 
+    batch_queries = [parse_tokens(text['query'].split()) for text in batch_data]
+    batch_text_embedding = tf.cast(tf.reshape(embedding_generator.generate_text(batch_queries), (batch_size, -1)), dtype=tf.double)
+
+    for code_embedding in code_embeddings_dataset:
+        embedding = concat_embeddings(code_embedding, batch_text_embedding)
+        if embedding.shape == (batch_size, seq_len * hidden_size * 2):
+          yield embedding
+
+concat_embedding_spec = tf.TensorSpec(shape=(batch_size, seq_len * hidden_size * 2), dtype=tf.float64) # type: ignore
+prediction_dataset = tf.data.Dataset.from_generator(code_query_gen, output_signature=(concat_embedding_spec))
+model.load()
+
+for predict in prediction_dataset.take(1):
+  batched_results = model.predict(predict)
+  ranking = np.sort(batched_results)[::-1]
+  print(ranking)
