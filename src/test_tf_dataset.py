@@ -47,6 +47,13 @@ train_files = tf.data.Dataset.list_files(os.path.join(os.getcwd(), 'datasets', '
 lines = tf.data.TextLineDataset(train_files)
 
 """
+TensorUtils (?)
+"""
+# TODO: Use this utils in code
+def tensor_to_string(tensor):
+  return tensor.numpy().decode('utf-8')
+
+"""
 Initialize embedding generator
 """
 code_config = AutoConfig.from_pretrained("microsoft/codebert-base", max_position_embeddings=seq_len)
@@ -186,9 +193,9 @@ def code_embedding_gen():
   for batch_lines in lines.take(dataset_samples_count).batch(batch_size):
     pairs = [map_pair_from_jsonl(line.numpy().decode('utf-8')) for line in batch_lines]
 
-    yield tf.reshape(embedding_generator.generate_code(pairs), (batch_size, -1))
+    yield tf.reshape(embedding_generator.generate_code(pairs), (batch_size, -1)), tf.constant([pair.id for pair in pairs], dtype=tf.string)
 
-code_embeddings_dataset = tf.data.Dataset.from_generator(code_embedding_gen, output_signature=(embedding_spec))
+code_embeddings_dataset = tf.data.Dataset.from_generator(code_embedding_gen, output_signature=(embedding_spec, id_spec))
 
 queries_count = 2880
 query_lines = tf.data.TextLineDataset('datasets/filtered_queries.csv').take(queries_count)
@@ -202,16 +209,17 @@ def code_query_gen():
     batch_queries = [parse_tokens(text['query'].split()) for text in batch_data]
     batch_text_embedding = tf.cast(tf.reshape(embedding_generator.generate_text(batch_queries), (batch_size, -1)), dtype=tf.double)
 
-    for code_embedding in code_embeddings_dataset:
+    for code_embedding, code_ids in code_embeddings_dataset:
         embedding = concat_embeddings(code_embedding, batch_text_embedding)
         if embedding.shape == (batch_size, seq_len * hidden_size * 2):
-          yield embedding
+          yield embedding, code_ids
 
 concat_embedding_spec = tf.TensorSpec(shape=(batch_size, seq_len * hidden_size * 2), dtype=tf.float64) # type: ignore
-prediction_dataset = tf.data.Dataset.from_generator(code_query_gen, output_signature=(concat_embedding_spec))
+prediction_dataset = tf.data.Dataset.from_generator(code_query_gen, output_signature=(concat_embedding_spec, id_spec))
 model.load()
 
-for predict in prediction_dataset.take(1):
-  batched_results = model.predict(predict)
-  ranking = np.sort(batched_results)[::-1]
-  print(ranking)
+for concatenated_embeddings, code_ids in prediction_dataset.take(1):
+  batched_results = model.predict(concatenated_embeddings)
+  result_id_list = [(result, tensor_to_string(id)) for result, id in zip(batched_results, code_ids)]
+  for result, id in result_id_list:
+    print(f'{result} -> {id}')
