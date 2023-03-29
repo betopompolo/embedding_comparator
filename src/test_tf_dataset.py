@@ -47,11 +47,14 @@ train_files = tf.data.Dataset.list_files(os.path.join(os.getcwd(), 'datasets', '
 lines = tf.data.TextLineDataset(train_files)
 
 """
-TensorUtils (?)
+utils (?)
 """
 # TODO: Use this utils in code
 def tensor_to_string(tensor):
   return tensor.numpy().decode('utf-8')
+
+def sort_results_to_id(results_to_id_list):
+  return sorted(results_to_id_list, key=lambda x: x[0], reverse=True)
 
 """
 Initialize embedding generator
@@ -220,6 +223,6 @@ model.load()
 
 for concatenated_embeddings, code_ids in prediction_dataset.take(1):
   batched_results = model.predict(concatenated_embeddings)
-  result_id_list = [(result, tensor_to_string(id)) for result, id in zip(batched_results, code_ids)]
-  for result, id in result_id_list:
-    print(f'{result} -> {id}')
+  ranking = sort_results_to_id([(result, tensor_to_string(id)) for result, id in zip(batched_results, code_ids)])
+  print(f'batched {batched_results.shape} item {ranking[0][0].shape}')
+  # print(ranking)
