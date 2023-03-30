@@ -5,7 +5,6 @@ from keras.layers import Dense, Input
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 
 ModelInput = Tuple[tf.Tensor, tf.Tensor]

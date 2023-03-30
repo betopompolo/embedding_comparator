@@ -27,18 +27,18 @@ hidden_size = 768
 Open dataset files (from CodeSearchNet)
 """
 dataset_len = {
-    "test": {
-        "java": 26880,
-        "python": 22144
-    },
-    "train": {
-        "java": 256,
-        "python": 256
-    },
-    "valid": {
-        "java": 15296,
-        "python": 23104
-    }
+  "test": {
+    "java": 26880,
+    "python": 22144
+  },
+  "train": {
+    "java": 2560,
+    "python": 2560
+  },
+  "valid": {
+    "java": 15296,
+    "python": 23104
+  }
 }
 dataset_type = 'train'
 dataset_samples_count = sum(dataset_len[dataset_type].values())
@@ -159,70 +159,66 @@ Write embeddings dataset in a .tfrecords files
 #         writer.write(example.SerializeToString())
 
 """
-Train the network using tfrecords
+Train the network
 """
 def prepare_sample_for_training(code_emb, comment_emb, target_emb, _pairs_ids):
-    input = tf.concat([code_emb, comment_emb], axis=1)
+  input = tf.concat([code_emb, comment_emb], axis=1)
+  return tf.ensure_shape(input, (None, seq_len * hidden_size * 2)), tf.ensure_shape(target_emb, (None, )) 
 
-    return tf.ensure_shape(input, (None, seq_len * hidden_size * 2)), tf.ensure_shape(target_emb, (None, )) 
-
-# tf_dataset = tf.data.TFRecordDataset(tf_dataset_path).map(parse_example).map(prepare_sample_for_training)
-# model = EmbeddingComparator()
-# model.fit(tf_dataset, batch_size=batch_size)
-# tf_dataset = embeddings_dataset.map(prepare_sample_for_training)
+tf_dataset = embeddings_dataset.map(prepare_sample_for_training)
 model = EmbeddingComparator()
-# model.fit(tf_dataset, batch_size=batch_size)
-# model.save()
+model.fit(tf_dataset, batch_size=batch_size)
+model.save()
 
 """
 Creating the results ranking
 """
-def map_from_csv(value: str):
-  splitted = value.split(',')
-  if len(splitted) < 4:
-      return None
+# def map_from_csv(value: str):
+#   splitted = value.split(',')
+#   if len(splitted) < 4:
+#       return None
   
-  [language, query, id, relevance, *notes] = splitted
+#   [language, query, id, relevance, *notes] = splitted
   
-  return {
-    'id': id,
-    'language': language,
-    'query': query,
-    'relevance': relevance,
-    'notes': " ".join(notes),
-  }
+#   return {
+#     'id': id,
+#     'language': language,
+#     'query': query,
+#     'relevance': relevance,
+#     'notes': " ".join(notes),
+#   }
 
-def code_embedding_gen():
-  for batch_lines in lines.take(dataset_samples_count).batch(batch_size):
-    pairs = [map_pair_from_jsonl(line.numpy().decode('utf-8')) for line in batch_lines]
+# def code_embedding_gen():
+#   for batch_lines in lines.take(dataset_samples_count).batch(batch_size):
+#     pairs = [map_pair_from_jsonl(line.numpy().decode('utf-8')) for line in batch_lines]
 
-    yield tf.reshape(embedding_generator.generate_code(pairs), (batch_size, -1)), tf.constant([pair.id for pair in pairs], dtype=tf.string)
+#     yield tf.reshape(embedding_generator.generate_code(pairs), (batch_size, -1)), tf.constant([pair.id for pair in pairs], dtype=tf.string)
 
-code_embeddings_dataset = tf.data.Dataset.from_generator(code_embedding_gen, output_signature=(embedding_spec, id_spec))
+# code_embeddings_dataset = tf.data.Dataset.from_generator(code_embedding_gen, output_signature=(embedding_spec, id_spec))
 
-queries_count = 2880
-query_lines = tf.data.TextLineDataset('datasets/filtered_queries.csv').take(queries_count)
+# queries_count = 2880
+# query_lines = tf.data.TextLineDataset('datasets/filtered_queries.csv').take(queries_count)
 
-def concat_embeddings(code_emb, comment_emb):
-  return tf.concat([code_emb, comment_emb], axis=1)
+# def concat_embeddings(code_emb, comment_emb):
+#   return tf.concat([code_emb, comment_emb], axis=1)
 
-def code_query_gen():
-  for batch_lines in query_lines.batch(batch_size):
-    batch_data = list(filter(lambda x: x != None, [map_from_csv(line.numpy().decode('utf-8')) for line in batch_lines])) 
-    batch_queries = [parse_tokens(text['query'].split()) for text in batch_data]
-    batch_text_embedding = tf.cast(tf.reshape(embedding_generator.generate_text(batch_queries), (batch_size, -1)), dtype=tf.double)
+# def code_query_gen():
+#   for batch_lines in query_lines.batch(batch_size):
+#     batch_data = list(filter(lambda x: x != None, [map_from_csv(line.numpy().decode('utf-8')) for line in batch_lines])) 
+#     batch_queries = [parse_tokens(text['query'].split()) for text in batch_data]
+#     batch_text_embedding = tf.cast(tf.reshape(embedding_generator.generate_text(batch_queries), (batch_size, -1)), dtype=tf.double)
 
-    for code_embedding, code_ids in code_embeddings_dataset:
-        embedding = concat_embeddings(code_embedding, batch_text_embedding)
-        if embedding.shape == (batch_size, seq_len * hidden_size * 2):
-          yield embedding, code_ids
+#     for code_embedding, code_ids in code_embeddings_dataset:
+#         embedding = concat_embeddings(code_embedding, batch_text_embedding)
+#         if embedding.shape == (batch_size, seq_len * hidden_size * 2):
+#           yield embedding, code_ids
 
-concat_embedding_spec = tf.TensorSpec(shape=(batch_size, seq_len * hidden_size * 2), dtype=tf.float64) # type: ignore
-prediction_dataset = tf.data.Dataset.from_generator(code_query_gen, output_signature=(concat_embedding_spec, id_spec))
-model.load()
+# concat_embedding_spec = tf.TensorSpec(shape=(batch_size, seq_len * hidden_size * 2), dtype=tf.float64) # type: ignore
+# prediction_dataset = tf.data.Dataset.from_generator(code_query_gen, output_signature=(concat_embedding_spec, id_spec))
+# model.load()
 
-for concatenated_embeddings, code_ids in prediction_dataset.take(1):
-  batched_results = model.predict(concatenated_embeddings)
-  ranking = sort_results_to_id([(result, tensor_to_string(id)) for result, id in zip(batched_results, code_ids)])
-  print(f'batched {batched_results.shape} item {ranking[0][0].shape}')
-  # print(ranking)
+# for concatenated_embeddings, code_ids in prediction_dataset.take(1):
+#   batched_results = model.predict(concatenated_embeddings)
+#   ranking = sort_results_to_id([(result, tensor_to_string(id)) for result, id in zip(batched_results, code_ids)])
+#   print(f'batched {batched_results.shape} item {ranking[0][0].shape}')
+#   # print(ranking)
