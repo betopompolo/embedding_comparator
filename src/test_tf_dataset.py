@@ -77,9 +77,9 @@ def parse_tokens(tokens: list[str]) -> str:
 def map_pair_from_jsonl(jsonl: str) -> CodeCommentPair:    
     json = orjson.loads(jsonl)
     pair = CodeCommentPair(
-        id=json['url'],
-        code=parse_tokens(json['code_tokens']),
-        comment=parse_tokens(json['docstring_tokens']),
+      id=json['url'],
+      code=parse_tokens(json['code_tokens']),
+      comment=parse_tokens(json['docstring_tokens']),
     )
 
     return pair

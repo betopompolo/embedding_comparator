@@ -1,41 +1,46 @@
 from typing import Tuple
 
 from keras import Model, Sequential
-from keras.layers import Dense, Input
+from keras.layers import Dense
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
 import tensorflow as tf
 
-
 ModelInput = Tuple[tf.Tensor, tf.Tensor]
 
-
 class EmbeddingComparator():
-    _model: Model
-    _model_weights_path = 'model/emb_comparator'
+  _model: Model
+  _model_dir = 'model_lite/emb_comparator'
 
-    def __init__(self, activation='relu') -> None:
-        self._model = Sequential([
-            Dense(128, activation=activation),
-            Dense(1, activation='sigmoid')
-        ])
+  def __init__(self, activation='relu') -> None:
+    self._model = Sequential([
+        Dense(128, activation=activation),
+        Dense(1, activation='sigmoid')
+    ])
 
-        self._model.compile(
-            optimizer=Adam(learning_rate=0.01),
-            loss=BinaryCrossentropy(),
-        )
+    self._model.compile(
+        optimizer=Adam(learning_rate=0.01),
+        loss=BinaryCrossentropy(),
+    )
 
-    def fit(self, inputs: ModelInput, batch_size=64, epochs=5):
-        self._model.fit(
-            inputs,
-            batch_size=batch_size,
-            epochs=epochs,
-        )
-    def save(self):
-        self._model.save_weights(self._model_weights_path)
-    
-    def load(self):
-        self._model.load_weights(self._model_weights_path)
+  def fit(self, inputs: ModelInput, batch_size: int, epochs: int, steps_count: int):
+    self._model.fit(
+      inputs,
+      batch_size=batch_size,
+      epochs=epochs,
+      steps_per_epoch=steps_count,
+      shuffle=False,
+    )
+  def save(self):
+    print(f'saving model at "{self._model_dir}"...')
+    self._model.save(self._model_dir)
+  
+  def load(self):
+    print(f'loading model from "{self._model_dir}"...')
+    self._model = tf.keras.models.load_model(self._model_dir)
 
-    def predict(self, inputs):
-        return self._model.predict(inputs)
+  def summary(self):
+    self._model.summary()
+
+  def predict(self, inputs):
+    return self._model.predict(inputs)
