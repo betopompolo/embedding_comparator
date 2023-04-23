@@ -10,7 +10,7 @@ ModelInput = Tuple[tf.Tensor, tf.Tensor]
 
 class EmbeddingComparator():
   _model: Model
-  _model_dir = 'model_lite/emb_comparator'
+  _model_dir = 'model_lite/emb_comparator' # TODO: Using lite! keep it?
 
   def __init__(self, activation='relu') -> None:
     self._model = Sequential([
@@ -31,6 +31,7 @@ class EmbeddingComparator():
       steps_per_epoch=steps_count,
       shuffle=False,
     )
+
   def save(self):
     print(f'saving model at "{self._model_dir}"...')
     self._model.save(self._model_dir)
@@ -42,5 +43,5 @@ class EmbeddingComparator():
   def summary(self):
     self._model.summary()
 
-  def predict(self, inputs):
-    return self._model.predict(inputs)
+  def predict(self, inputs, hide_logs = False):
+    return self._model.predict(inputs, verbose=0 if hide_logs else 'auto') # type: ignore

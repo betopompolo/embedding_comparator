@@ -166,7 +166,7 @@ model = EmbeddingComparator()
 #   return tf.ensure_shape(input, (None, seq_len * hidden_size * 2)), tf.ensure_shape(target_emb, (None, )) 
 
 # tf_dataset = embeddings_dataset.map(prepare_sample_for_training)
-# model.fit(tf_dataset, batch_size=batch_size)
+# model. (tf_dataset, batch_size=batch_size)
 # model.save()
 
 """

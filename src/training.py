@@ -12,14 +12,13 @@ from embedding_concat_default import EmbeddingConcatDefault
 from json_parser import OrJsonParser
 from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser
 from training_dataset import TrainingDataset
-from transformers import AutoTokenizer, TFAutoModel, AutoConfig
 from utils import encoder_seq_len, encoder_hidden_size
 
 batch_size = 128
 batch_count = 105
 @dataclass
 class Training:
-  dataset_repository: DatasetRepository
+  dataset_repository: DatasetRepository[CodeCommentPair]
   pre_processer: PreProcesser
   embedding_generator: EmbeddingGenerator
   embedding_concat: EmbeddingConcat
@@ -46,9 +45,8 @@ class Training:
 
     def gen_and_concat_embeddings(pairs: List[CodeCommentPair]):
       code_embedddings, text_embeddings = self.embedding_generator.from_code([self.pre_processer.process_code(pair.code_tokens) for pair in pairs]), self.embedding_generator.from_text([self.pre_processer.process_text(pair.comment_tokens) for pair in pairs])
-      concatenated = self.embedding_concat.concatenate(code_embedddings, text_embeddings)
-      concatenated_reshaped = tf.reshape(concatenated, (batch_size, -1))
-      return concatenated_reshaped
+      concatenated = self.embedding_concat.concatenate(code_embedddings, text_embeddings, reshape=(batch_size, -1))
+      return concatenated
 
     def embeddings_dataset_generator():
       for group_pairs in more_itertools.grouper(training_dataset, batch_size, incomplete='ignore'):
@@ -62,24 +60,20 @@ class Training:
           yield (batch_negative_embeddings, self.embedding_generator.target(0, batch_size))
     
     concat_embedding_spec = tf.TensorSpec(shape=(batch_size, encoder_seq_len * encoder_hidden_size * 2), dtype=tf.float64) # type: ignore
-    target_spec = tf.TensorSpec(shape=(None, ), dtype=tf.int32) # type: ignore
+    target_spec = tf.TensorSpec(shape=(batch_size, ), dtype=tf.int32) # type: ignore
     embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
     self.model.fit(embedding_dataset, batch_size=batch_size, epochs=1, steps_count=batch_count * (self.negative_samples_count + 1))
-    self.model.save()
+    # self.model.save()
 
+    # DOING: check generated embeddings vs normalized embeddings (do I need to normalize?)
 
-code_config = AutoConfig.from_pretrained("microsoft/codebert-base", max_position_embeddings=encoder_seq_len)
-text_config = AutoConfig.from_pretrained("bert-base-uncased", max_position_embeddings=encoder_seq_len)
-embedding_generator = EmbeddingGeneratorDefault(
-  text_embedding_model=TFAutoModel.from_config(text_config),
-  text_tokenizer= AutoTokenizer.from_pretrained("bert-base-uncased", model_max_length=text_config.max_position_embeddings),
-  code_embedding_model=TFAutoModel.from_config(code_config),
-  code_tokenizer=AutoTokenizer.from_pretrained("microsoft/codebert-base", model_max_length=code_config.max_position_embeddings),
-)
 Training(
-  dataset_repository=TrainingDataset(jsonParser=OrJsonParser(), samples_count=batch_size * batch_count),
+  dataset_repository=TrainingDataset(
+    jsonParser=OrJsonParser(), 
+    samples_count=batch_size * batch_count,
+  ),
   pre_processer=PreProcesserDefault(),
   model=EmbeddingComparator(),
   embedding_concat=EmbeddingConcatDefault(),
-  embedding_generator=embedding_generator, 
+  embedding_generator=EmbeddingGeneratorDefault(), 
 ).run()

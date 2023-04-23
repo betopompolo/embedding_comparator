@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Generator, Iterable, List, Union
+from typing import Any, Callable, Generator, Generic, Iterable, List, Optional, TypeVar, Union
 import tensorflow as tf
 
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -12,12 +12,31 @@ Embedding = tf.Tensor
 Tokenizer = PreTrainedTokenizer | PreTrainedTokenizerFast
 @dataclass
 class CodeCommentPair:
-    id: str
-    code_tokens: List[str]
-    comment_tokens: List[str]
-class DatasetRepository(metaclass=ABCMeta):
+  id: str
+  code_tokens: List[str]
+  comment_tokens: List[str]
+
+@dataclass
+class Query:
+  query: str
+  relevance: int
+  language: str
+  url: str
+
+@dataclass
+class ValidationResult:
+  query: Query
+  code_url: str
+  similarity: float
+
+ItemType = TypeVar('ItemType')
+class DatasetRepository(Generic[ItemType], metaclass=ABCMeta):
   @abstractmethod
-  def get_dataset(self) -> Iterable[CodeCommentPair]:
+  def get_dataset(self) -> Iterable[ItemType]:
+    raise NotImplementedError()
+  
+  @abstractmethod
+  def get_dataset_count(self) -> int:
     raise NotImplementedError()
   
 class PreProcesser(metaclass=ABCMeta):
@@ -44,7 +63,7 @@ class EmbeddingGenerator(metaclass=ABCMeta):
   
 class EmbeddingConcat(metaclass=ABCMeta):
   @abstractmethod
-  def concatenate(self, code_embedding: Embedding, text_embedding: Embedding) -> Embedding:
+  def concatenate(self, code_embedding: Embedding, text_embedding: Embedding, reshape: Optional[tuple]) -> Embedding:
     raise NotImplementedError()
 
 # TODO: Review the models below 👇
@@ -53,26 +72,25 @@ JsonData = dict[str, Any]
 
 
 class JsonParser(metaclass=ABCMeta):
-    @abstractmethod
-    def from_json(self, json_data: Union[str, bytes]) -> JsonData:
-        pass
+  @abstractmethod
+  def from_json(self, json_data: Union[str, bytes]) -> JsonData:
+      pass
 
 
 class DatasetType(str, Enum):
-    train = 'train'
-    test = 'test'
-    validation = 'valid'
+  train = 'train'
+  test = 'test'
+  validation = 'valid'
 
 
 class SupportedCodeLanguages(str, Enum):
-    java = 'java'
-    python = 'python'
+  java = 'java'
+  python = 'python'
 
 
 EmbeddingModel = Callable[[], TFBaseModelOutput]
 
-
 class CodeCommentPairRepository(metaclass=ABCMeta):
-    @abstractmethod
-    def batch(self, code_language: SupportedCodeLanguages, dataset_type: DatasetType, batch_size: int) -> Generator[List[CodeCommentPair], None, None]:
-        pass
+  @abstractmethod
+  def batch(self, code_language: SupportedCodeLanguages, dataset_type: DatasetType, batch_size: int) -> Generator[List[CodeCommentPair], None, None]:
+      pass

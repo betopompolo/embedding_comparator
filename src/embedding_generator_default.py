@@ -4,14 +4,18 @@ import tensorflow as tf
 from models import Embedding, EmbeddingGenerator, EmbeddingModel, Tokenizer
 from utils import encoder_seq_len
 
+from transformers import AutoConfig, TFAutoModel, AutoTokenizer
+
+
+code_config_default = AutoConfig.from_pretrained("microsoft/codebert-base", max_position_embeddings=encoder_seq_len)
+text_config_default = AutoConfig.from_pretrained("bert-base-uncased", max_position_embeddings=encoder_seq_len)
 
 @dataclass
 class EmbeddingGeneratorDefault(EmbeddingGenerator):
-  text_embedding_model: EmbeddingModel
-  code_embedding_model: EmbeddingModel
-  text_tokenizer: Tokenizer
-  code_tokenizer: Tokenizer
-  embeddings_count = 0
+  text_embedding_model: EmbeddingModel = TFAutoModel.from_config(text_config_default)
+  code_embedding_model: EmbeddingModel = TFAutoModel.from_config(code_config_default)
+  text_tokenizer: Tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", model_max_length=text_config_default.max_position_embeddings)
+  code_tokenizer: Tokenizer = AutoTokenizer.from_pretrained("microsoft/codebert-base", model_max_length=code_config_default.max_position_embeddings)
   
   def from_text(self, text: str | list[str]) -> Embedding:
     text_embeddings = self._get_embeddings(
@@ -49,5 +53,6 @@ class EmbeddingGeneratorDefault(EmbeddingGenerator):
     )
     output = model(**input)
     embedding = output.last_hidden_state
-    (normalized_embedding, _) = tf.linalg.normalize(embedding, axis=1)
-    return normalized_embedding
+    return embedding
+    # (normalized_embedding, _) = tf.linalg.normalize(embedding, axis=1)
+    # return normalized_embedding
