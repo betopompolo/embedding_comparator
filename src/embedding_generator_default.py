@@ -54,5 +54,3 @@ class EmbeddingGeneratorDefault(EmbeddingGenerator):
     output = model(**input)
     embedding = output.last_hidden_state
     return embedding
-    # (normalized_embedding, _) = tf.linalg.normalize(embedding, axis=1)
-    # return normalized_embedding

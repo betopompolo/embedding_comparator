@@ -30,6 +30,7 @@ class Validation:
     results: Dict[str, List[ValidationResult]] = {}
 
     test_slice_count = 50 # TODO: remove!!!
+    
     with tqdm(total=test_slice_count) as progress_bar:
       for query in itertools.islice(queries_dataset, 1):
         embedding_query = self.embedding_generator.from_text(
@@ -52,7 +53,7 @@ class Validation:
           progress_bar.update(1)
     
     # TODO: Move!
-    def print_results(search_term: str, results: List[ValidationResult]):
+    def print_query_results(search_term: str, results: List[ValidationResult]):
       print(f'search_term: {search_term}')
       for result in results:
         print(f'code: {result.code_url} similarity: {result.similarity}')
@@ -60,7 +61,7 @@ class Validation:
     
     for search_term in results.keys():
       results[search_term].sort(key=lambda result: result.similarity, reverse=True)
-      print_results(search_term, results[search_term])
+      print_query_results(search_term, results[search_term])
       break
 
 

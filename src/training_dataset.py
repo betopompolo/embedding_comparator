@@ -12,7 +12,7 @@ lines_count_in_json_file = 30000
 @dataclass
 class TrainingDataset(DatasetRepository[CodeCommentPair]):
   jsonParser: JsonParser
-  samples_count: int = training_samples_count
+  samples_count: int = training_samples_count # TODO: Remove and use itertools.islice instead
 
   def get_dataset(self) -> Iterable[CodeCommentPair]:
     train_files = tf.data.Dataset.list_files(os.path.join(os.getcwd(), 'datasets', 'train', '*.jsonl'))
