@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Generator, Generic, Iterable, List, Optional, TypeVar, Union
+from typing import Any, Callable, Generator, Generic, Iterable, List, Literal, Optional, TypeVar, Union
 import tensorflow as tf
 
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -15,6 +15,7 @@ class CodeCommentPair:
   id: str
   code_tokens: List[str]
   comment_tokens: List[str]
+  partition: Literal['train', 'valid', 'test']
 
 @dataclass
 class Query:

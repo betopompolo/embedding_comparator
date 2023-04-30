@@ -69,7 +69,7 @@ class Training:
 
 Training(
   dataset_repository=TrainingDataset(
-    jsonParser=OrJsonParser(), 
+    json_parser=OrJsonParser(), 
     samples_count=batch_size * batch_count,
   ),
   pre_processer=PreProcesserDefault(),

@@ -11,7 +11,7 @@ lines_count_in_json_file = 30000
 
 @dataclass
 class TrainingDataset(DatasetRepository[CodeCommentPair]):
-  jsonParser: JsonParser
+  json_parser: JsonParser
   samples_count: int = training_samples_count # TODO: Remove and use itertools.islice instead
 
   def get_dataset(self) -> Iterable[CodeCommentPair]:
@@ -24,9 +24,10 @@ class TrainingDataset(DatasetRepository[CodeCommentPair]):
     return training_samples_count
   
   def parse_jsonl(self, string_tensor) -> CodeCommentPair:
-    jsonl = self.jsonParser.from_json(decode_tensor_string(string_tensor))
+    jsonl = self.json_parser.from_json(decode_tensor_string(string_tensor))
     return CodeCommentPair(
       id=jsonl['url'],
       code_tokens=jsonl['code_tokens'],
       comment_tokens=jsonl['docstring_tokens'],
+      partition="train"
     )
