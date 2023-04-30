@@ -13,7 +13,7 @@ class QueryDataset(DatasetRepository[Query]):
       yield self.__map_csv(decode_tensor_string(tensor_csv))
   
   def get_dataset_count(self) -> int:
-    return 2894
+    return 2892
 
   def __map_csv(self, csv: str) -> Query:
     values = csv.split(',')
