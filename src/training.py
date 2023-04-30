@@ -9,7 +9,7 @@ from pre_processer_default import PreProcesserDefault
 
 from embedding_comparator import EmbeddingComparator
 from embedding_concat_default import EmbeddingConcatDefault
-from json_parser import OrJsonParser
+from orjson_parser import OrJsonParser
 from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser
 from training_dataset import TrainingDataset
 from utils import encoder_seq_len, encoder_hidden_size
@@ -40,7 +40,8 @@ class Training:
         yield CodeCommentPair(
           id=pair.id,
           code_tokens=pair.code_tokens,
-          comment_tokens=negative_pair.comment_tokens
+          comment_tokens=negative_pair.comment_tokens,
+          partition='train'
         )
 
     def gen_and_concat_embeddings(pairs: List[CodeCommentPair]):

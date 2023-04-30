@@ -7,7 +7,7 @@ from tqdm import tqdm
 from embedding_comparator import EmbeddingComparator
 from embedding_concat_default import EmbeddingConcatDefault
 from embedding_generator_default import EmbeddingGeneratorDefault
-from json_parser import OrJsonParser
+from orjson_parser import OrJsonParser
 from models import (CodeCommentPair, DatasetRepository, EmbeddingConcat,
                     EmbeddingGenerator, PreProcesser, Query, ValidationResult)
 from pre_processer_default import PreProcesserDefault
