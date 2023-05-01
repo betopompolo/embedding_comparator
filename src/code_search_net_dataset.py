@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
+from pymongo import MongoClient
 
 import tensorflow as tf
 
@@ -9,26 +10,29 @@ from utils import codesearchnet_dataset_len, decode_tensor_string
 
 
 @dataclass
-class CodeSearchNetDataset(DatasetRepository):
-  json_parser: JsonParser
-
+class CodeSearchNetDataset(DatasetRepository[CodeCommentPair]):
+  mongo_client = MongoClient('mongodb://127.0.0.1:27018/')
+  cs_net_database = mongo_client['cs_net_mongo']
+  
   def get_dataset(self) -> Iterable[CodeCommentPair]:
-    all_files = tf.data.Dataset.list_files(os.path.join(os.getcwd(), 'datasets', '*', '*.jsonl'))
-    for jsonl in tf.data.TextLineDataset(all_files):
-      code_comment_pair = self.parse_jsonl(jsonl)
-      yield code_comment_pair
+    return super().get_dataset()
+
+  def search(self, github_url: str) -> CodeCommentPair | None:
+    pairs_collection = self.cs_net_database.get_collection('pairs')
+    db_pair = pairs_collection.find_one(filter={ "github_url": github_url })
+
+    return None if db_pair is None else self.__map_from_db(db_pair)
 
   def get_dataset_count(self) -> int:
     count = 0
     for key in codesearchnet_dataset_len:
       count += sum(codesearchnet_dataset_len[key].values())
     return count
-  
-  def parse_jsonl(self, string_tensor) -> CodeCommentPair:
-    jsonl = self.json_parser.from_json(decode_tensor_string(string_tensor))
+
+  def __map_from_db(self, db_pair: dict):
     return CodeCommentPair(
-      id=jsonl['url'],
-      code_tokens=jsonl['code_tokens'],
-      comment_tokens=jsonl['docstring_tokens'],
-      partition=jsonl['partition']
+      id=db_pair['github_url'],
+      code_tokens=db_pair['code_tokens'],
+      comment_tokens=db_pair['comment_tokens'],
+      partition=db_pair['partition'],
     )

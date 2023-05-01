@@ -1,7 +1,6 @@
 from typing import Iterable
 
 import tensorflow as tf
-from tqdm import tqdm
 from models import DatasetRepository, Query
 from utils import decode_tensor_string
 
@@ -14,6 +13,9 @@ class QueryDataset(DatasetRepository[Query]):
   
   def get_dataset_count(self) -> int:
     return 2892
+  
+  def search(self, github_url: str) -> Query | None:
+    return super().search(github_url)
 
   def __map_csv(self, csv: str) -> Query:
     values = csv.split(',')
@@ -25,7 +27,3 @@ class QueryDataset(DatasetRepository[Query]):
       url=github_url,
       relevance=int(relevance)
     )
-
-ds = QueryDataset()
-for q in tqdm(ds.get_dataset(), total=ds.get_dataset_count()):
-  pass

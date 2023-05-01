@@ -37,6 +37,10 @@ class DatasetRepository(Generic[ItemType], metaclass=ABCMeta):
     raise NotImplementedError()
   
   @abstractmethod
+  def search(self, github_url: str) -> Optional[ItemType]:
+    raise NotImplementedError()
+  
+  @abstractmethod
   def get_dataset_count(self) -> int:
     raise NotImplementedError()
   
