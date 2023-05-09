@@ -9,13 +9,14 @@ from pre_processer_default import PreProcesserDefault
 
 from embedding_comparator import EmbeddingComparator
 from embedding_concat_default import EmbeddingConcatDefault
-from orjson_parser import OrJsonParser
 from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser
-from training_dataset import TrainingDataset
+from training_local_dataset import TrainingLocalDataset
 from utils import encoder_seq_len, encoder_hidden_size
 
 batch_size = 128
-batch_count = 105
+training_samples_count = 128000
+negative_samples_count = 1
+
 @dataclass
 class Training:
   dataset_repository: DatasetRepository[CodeCommentPair]
@@ -23,11 +24,12 @@ class Training:
   embedding_generator: EmbeddingGenerator
   embedding_concat: EmbeddingConcat
   model: EmbeddingComparator
-  negative_samples_count: int = 1
-
+  
+  
   def run(self):
     training_dataset = self.dataset_repository.get_dataset()
 
+    # TODO: Use negative_sample_count value here
     def generate_negative_samples(pairs: List[CodeCommentPair]):
       pairs_len = len(pairs)
 
@@ -41,7 +43,8 @@ class Training:
           id=pair.id,
           code_tokens=pair.code_tokens,
           comment_tokens=negative_pair.comment_tokens,
-          partition='train'
+          partition=pair.partition,
+          language=pair.language,
         )
 
     def gen_and_concat_embeddings(pairs: List[CodeCommentPair]):
@@ -63,15 +66,12 @@ class Training:
     concat_embedding_spec = tf.TensorSpec(shape=(batch_size, encoder_seq_len * encoder_hidden_size * 2), dtype=tf.float64) # type: ignore
     target_spec = tf.TensorSpec(shape=(batch_size, ), dtype=tf.int32) # type: ignore
     embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
-    self.model.fit(embedding_dataset, batch_size=batch_size, epochs=1, steps_count=batch_count * (self.negative_samples_count + 1))
-    # self.model.save()
-
-    # DOING: check generated embeddings vs normalized embeddings (do I need to normalize?)
+    self.model.fit(embedding_dataset, batch_size=batch_size, epochs=1)
+    self.model.save(model_dir=f'model/{training_samples_count}_samples')
 
 Training(
-  dataset_repository=TrainingDataset(
-    json_parser=OrJsonParser(), 
-    samples_count=batch_size * batch_count,
+  dataset_repository=TrainingLocalDataset(
+    take=int(training_samples_count / (negative_samples_count + 1))
   ),
   pre_processer=PreProcesserDefault(),
   model=EmbeddingComparator(),

@@ -3,6 +3,8 @@ from pymongo import MongoClient
 from tqdm import tqdm
 
 from code_search_net_dataset import CodeSearchNetDataset
+from models import CodeCommentPair, DatasetRepository
+from orjson_parser import OrJsonParser
 from query_dataset import QueryDataset
 
 mongo_client = MongoClient('mongodb://127.0.0.1:27018/')
@@ -14,15 +16,18 @@ def get_collection(collection_name: str):
 
 def write_pairs():
   pairs_collection = get_collection('pairs')
-  cs_net = CodeSearchNetDataset() # TODO: get_dataset is not implemented in CodeSearchNetDataset. Create another class to get pairs from jsonl instead of mongo
+  pairs_repo: DatasetRepository[CodeCommentPair] = CodeSearchNetDataset(
+    json_parser=OrJsonParser(),
+  )
 
-  with tqdm(desc="Write code/comment pairs into mongo database", total=cs_net.get_dataset_count()) as progress_bar:
-    for pairs_batch in more_itertools.chunked(cs_net.get_dataset(), batch_size):
+  with tqdm(desc="Write code/comment pairs into mongo database", total=pairs_repo.get_dataset_count()) as progress_bar:
+    for pairs_batch in more_itertools.chunked(pairs_repo.get_dataset(), batch_size):
       documents = [{
         "github_url": pair.id,
         "code_tokens": pair.code_tokens,
         "comment_tokens": pair.comment_tokens,
-        "partition": pair.partition
+        "partition": pair.partition,
+        "language": pair.language,
       } for pair in pairs_batch]
       pairs_collection.insert_many(documents)
 
@@ -43,3 +48,7 @@ def write_queries():
 
       collection.insert_many(documents)
       progress_bar.update(len(documents))
+
+
+# write_pairs()
+# write_queries()

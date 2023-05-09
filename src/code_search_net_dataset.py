@@ -1,38 +1,43 @@
-import os
 from dataclasses import dataclass
-from typing import Iterable, Optional
-from pymongo import MongoClient
+import os
+from typing import Iterable, List
 
 import tensorflow as tf
 
-from models import CodeCommentPair, DatasetRepository, JsonParser
+from models import CodeCommentPair, DatasetRepository, JsonParser, Language, Partition
 from utils import codesearchnet_dataset_len, decode_tensor_string
 
 
 @dataclass
 class CodeSearchNetDataset(DatasetRepository[CodeCommentPair]):
-  mongo_client = MongoClient('mongodb://127.0.0.1:27018/')
-  cs_net_database = mongo_client['cs_net_mongo']
-  
+  json_parser: JsonParser
+
   def get_dataset(self) -> Iterable[CodeCommentPair]:
-    return super().get_dataset()
+    partitions: List[Partition] = ['train', 'test', 'valid']
 
-  def search(self, github_url: str) -> CodeCommentPair | None:
-    pairs_collection = self.cs_net_database.get_collection('pairs')
-    db_pair = pairs_collection.find_one(filter={ "github_url": github_url })
+    for partition in partitions:
+      java_files = tf.data.Dataset.list_files(os.path.join(os.getcwd(), 'datasets', partition, 'java_*.jsonl'))
+      python_files = tf.data.Dataset.list_files(os.path.join(os.getcwd(), 'datasets', partition, 'python_*.jsonl'))
 
-    return None if db_pair is None else self.__map_from_db(db_pair)
+      for java_tensor in tf.data.TextLineDataset(java_files):
+        yield self.parse_jsonl(java_tensor)
+
+      for python_tensor in tf.data.TextLineDataset(python_files):
+        yield self.parse_jsonl(python_tensor)
 
   def get_dataset_count(self) -> int:
-    count = 0
-    for key in codesearchnet_dataset_len:
-      count += sum(codesearchnet_dataset_len[key].values())
-    return count
-
-  def __map_from_db(self, db_pair: dict):
+    return sum(codesearchnet_dataset_len['train'].values()) + sum(codesearchnet_dataset_len['test'].values()) + sum(codesearchnet_dataset_len['valid'].values())
+  
+  def search(self, github_url: str) -> CodeCommentPair | None:
+    return super().search(github_url)
+  
+  def parse_jsonl(self, string_tensor) -> CodeCommentPair:
+    jsonl = self.json_parser.from_json(decode_tensor_string(string_tensor))
     return CodeCommentPair(
-      id=db_pair['github_url'],
-      code_tokens=db_pair['code_tokens'],
-      comment_tokens=db_pair['comment_tokens'],
-      partition=db_pair['partition'],
+      id=jsonl['url'],
+      code_tokens=jsonl['code_tokens'],
+      comment_tokens=jsonl['docstring_tokens'],
+      partition=jsonl['partition'],
+      language=jsonl['language']
     )
+  

@@ -10,12 +10,15 @@ from transformers.modeling_tf_outputs import TFBaseModelOutput
 
 Embedding = tf.Tensor
 Tokenizer = PreTrainedTokenizer | PreTrainedTokenizerFast
+Partition = Literal['train', 'valid', 'test']
+Language = Literal['python', 'java']
 @dataclass
 class CodeCommentPair:
   id: str
   code_tokens: List[str]
   comment_tokens: List[str]
-  partition: Literal['train', 'valid', 'test']
+  partition: Partition
+  language: Language
 
 @dataclass
 class Query:

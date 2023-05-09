@@ -1,3 +1,8 @@
+from typing import Dict
+
+from models import Language, Partition
+
+
 def decode_tensor_string(tensor) -> str:
   return tensor.numpy().decode('utf-8')
 
@@ -5,7 +10,7 @@ random_seed = 42
 encoder_seq_len = 512
 encoder_hidden_size = 768
 
-codesearchnet_dataset_len = {
+codesearchnet_dataset_len: Dict[Partition, Dict[Language, int]] = {
   "test": {
     "java": 26909,
     "python": 22176
