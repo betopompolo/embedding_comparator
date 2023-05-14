@@ -7,7 +7,7 @@ import tensorflow as tf
 from embedding_generator_default import EmbeddingGeneratorDefault
 from pre_processer_default import PreProcesserDefault
 
-from embedding_comparator import EmbeddingComparator
+from embedding_comparator_dense import EmbeddingComparator, EmbeddingComparatorDense
 from embedding_concat_default import EmbeddingConcatDefault
 from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser
 from training_local_dataset import TrainingLocalDataset
@@ -25,15 +25,13 @@ class Training:
   embedding_concat: EmbeddingConcat
   model: EmbeddingComparator
   
-  
   def run(self):
     training_dataset = self.dataset_repository.get_dataset()
 
     # TODO: Use negative_sample_count value here
     def generate_negative_samples(pairs: List[CodeCommentPair]):
-      pairs_len = len(pairs)
-
       def get_random_index(exclude_index: int):
+        pairs_len = len(pairs)
         index_list = [i for i in range(pairs_len) if i != exclude_index]
         return index_list[random.randint(0, len(index_list) - 2)]
 
@@ -66,15 +64,16 @@ class Training:
     concat_embedding_spec = tf.TensorSpec(shape=(batch_size, encoder_seq_len * encoder_hidden_size * 2), dtype=tf.float64) # type: ignore
     target_spec = tf.TensorSpec(shape=(batch_size, ), dtype=tf.int32) # type: ignore
     embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
+
     self.model.fit(embedding_dataset, batch_size=batch_size, epochs=1)
-    self.model.save(model_dir=f'model/{training_samples_count}_samples')
+    self.model.save(f'dense_{training_samples_count}')
 
 Training(
   dataset_repository=TrainingLocalDataset(
     take=int(training_samples_count / (negative_samples_count + 1))
   ),
   pre_processer=PreProcesserDefault(),
-  model=EmbeddingComparator(),
+  model=EmbeddingComparatorDense(),
   embedding_concat=EmbeddingConcatDefault(),
   embedding_generator=EmbeddingGeneratorDefault(), 
 ).run()

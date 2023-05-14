@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Generator, Generic, Iterable, List, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Generator, Generic, Iterable, List, Literal, Optional, Tuple, TypeVar, Union
 import tensorflow as tf
 
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -12,6 +12,8 @@ Embedding = tf.Tensor
 Tokenizer = PreTrainedTokenizer | PreTrainedTokenizerFast
 Partition = Literal['train', 'valid', 'test']
 Language = Literal['python', 'java']
+ModelInput = Tuple[tf.Tensor, tf.Tensor]
+
 @dataclass
 class CodeCommentPair:
   id: str
@@ -34,6 +36,28 @@ class ValidationResult:
   similarity: float
 
 ItemType = TypeVar('ItemType')
+
+class EmbeddingComparator(metaclass=ABCMeta):
+  @abstractmethod
+  def fit(self, inputs: ModelInput, batch_size: int, epochs: int):
+    raise NotImplementedError()
+
+  @abstractmethod
+  def save(self, file_name: str):
+    raise NotImplementedError()
+  
+  @abstractmethod
+  def load(self, file_name: str):
+    raise NotImplementedError()
+
+  @abstractmethod
+  def predict(self, inputs) -> int:
+    raise NotImplementedError()
+  
+  @abstractmethod
+  def summary(self):
+    raise NotImplementedError()
+  
 class DatasetRepository(Generic[ItemType], metaclass=ABCMeta):
   @abstractmethod
   def get_dataset(self) -> Iterable[ItemType]:

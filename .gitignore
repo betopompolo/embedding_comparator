@@ -6,5 +6,5 @@ resources/.DS_Store
 src/__pycache__/
 logs/
 *.tfrecords
-model/
-model_lite/
+models/
+results/

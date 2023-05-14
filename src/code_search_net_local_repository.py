@@ -1,9 +1,8 @@
-import os
 from dataclasses import dataclass
-from typing import Iterable, List
+from typing import Iterable
 from pymongo import MongoClient
 
-from models import CodeCommentPair, DatasetRepository, Partition
+from models import CodeCommentPair, DatasetRepository
 
 
 @dataclass
