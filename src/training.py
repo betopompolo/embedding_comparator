@@ -4,12 +4,12 @@ from typing import List
 
 import more_itertools
 import tensorflow as tf
+from embedding_comparator_devise import EmbeddingComparatorDevise
 from embedding_generator_default import EmbeddingGeneratorDefault
 from pre_processer_default import PreProcesserDefault
 
-from embedding_comparator_dense import EmbeddingComparator, EmbeddingComparatorDense
 from embedding_concat_default import EmbeddingConcatDefault
-from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser
+from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser, EmbeddingComparator
 from training_local_dataset import TrainingLocalDataset
 from utils import encoder_seq_len, encoder_hidden_size
 
@@ -66,14 +66,14 @@ class Training:
     embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
 
     self.model.fit(embedding_dataset, batch_size=batch_size, epochs=1)
-    self.model.save(f'dense_{training_samples_count}')
+    self.model.save(f'devise_{training_samples_count}')
 
 Training(
   dataset_repository=TrainingLocalDataset(
     take=int(training_samples_count / (negative_samples_count + 1))
   ),
   pre_processer=PreProcesserDefault(),
-  model=EmbeddingComparatorDense(),
+  model=EmbeddingComparatorDevise(),
   embedding_concat=EmbeddingConcatDefault(),
   embedding_generator=EmbeddingGeneratorDefault(), 
 ).run()

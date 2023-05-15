@@ -95,7 +95,7 @@ class EmbeddingGenerator(metaclass=ABCMeta):
   
 class EmbeddingConcat(metaclass=ABCMeta):
   @abstractmethod
-  def concatenate(self, code_embedding: Embedding, text_embedding: Embedding, reshape: Optional[tuple]) -> Embedding:
+  def concatenate(self, code_embedding: Embedding, text_embedding: Embedding, reshape: Optional[tuple] = None) -> Embedding:
     raise NotImplementedError()
 
 # TODO: Review the models below 👇
