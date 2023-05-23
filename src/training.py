@@ -4,18 +4,9 @@ from typing import List
 
 import more_itertools
 import tensorflow as tf
-from embedding_comparator_devise import EmbeddingComparatorDevise
-from embedding_generator_default import EmbeddingGeneratorDefault
-from pre_processer_default import PreProcesserDefault
 
-from embedding_concat_default import EmbeddingConcatDefault
 from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser, EmbeddingComparator
-from training_local_dataset import TrainingLocalDataset
 from utils import encoder_seq_len, encoder_hidden_size
-
-batch_size = 128
-training_samples_count = 128000
-negative_samples_count = 1
 
 @dataclass
 class Training:
@@ -24,6 +15,9 @@ class Training:
   embedding_generator: EmbeddingGenerator
   embedding_concat: EmbeddingConcat
   model: EmbeddingComparator
+  batch_size: int
+  training_samples_count: int
+  negative_samples_count: int
   
   def run(self):
     training_dataset = self.dataset_repository.get_dataset()
@@ -47,33 +41,23 @@ class Training:
 
     def gen_and_concat_embeddings(pairs: List[CodeCommentPair]):
       code_embedddings, text_embeddings = self.embedding_generator.from_code([self.pre_processer.process_code(pair.code_tokens) for pair in pairs]), self.embedding_generator.from_text([self.pre_processer.process_text(pair.comment_tokens) for pair in pairs])
-      concatenated = self.embedding_concat.concatenate(code_embedddings, text_embeddings, reshape=(batch_size, -1))
+      concatenated = self.embedding_concat.concatenate(code_embedddings, text_embeddings, reshape=(self.batch_size, -1))
       return concatenated
 
     def embeddings_dataset_generator():
-      for group_pairs in more_itertools.grouper(training_dataset, batch_size, incomplete='ignore'):
+      for group_pairs in more_itertools.grouper(training_dataset, self.batch_size, incomplete='ignore'):
         batch_pairs = list(group_pairs)
         batch_embeddings = gen_and_concat_embeddings(batch_pairs)
-        yield (batch_embeddings, self.embedding_generator.target(1, batch_size))
+        yield (batch_embeddings, self.embedding_generator.target(1, self.batch_size))
         
         negative_samples = list(generate_negative_samples(batch_pairs))
-        for batch_negative_pairs in more_itertools.chunked(negative_samples, batch_size):
+        for batch_negative_pairs in more_itertools.chunked(negative_samples, self.batch_size):
           batch_negative_embeddings = gen_and_concat_embeddings(batch_negative_pairs)
-          yield (batch_negative_embeddings, self.embedding_generator.target(0, batch_size))
+          yield (batch_negative_embeddings, self.embedding_generator.target(0, self.batch_size))
     
-    concat_embedding_spec = tf.TensorSpec(shape=(batch_size, encoder_seq_len * encoder_hidden_size * 2), dtype=tf.float64) # type: ignore
-    target_spec = tf.TensorSpec(shape=(batch_size, ), dtype=tf.int32) # type: ignore
+    concat_embedding_spec = tf.TensorSpec(shape=(self.batch_size, encoder_seq_len * encoder_hidden_size * 2), dtype=tf.float64) # type: ignore
+    target_spec = tf.TensorSpec(shape=(self.batch_size, ), dtype=tf.int32) # type: ignore
     embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
 
-    self.model.fit(embedding_dataset, batch_size=batch_size, epochs=1)
-    self.model.save(f'devise_{training_samples_count}')
-
-Training(
-  dataset_repository=TrainingLocalDataset(
-    take=int(training_samples_count / (negative_samples_count + 1))
-  ),
-  pre_processer=PreProcesserDefault(),
-  model=EmbeddingComparatorDevise(),
-  embedding_concat=EmbeddingConcatDefault(),
-  embedding_generator=EmbeddingGeneratorDefault(), 
-).run()
+    self.model.fit(embedding_dataset, batch_size=self.batch_size, epochs=1, batch_count=int(self.training_samples_count / self.batch_size))
+    self.model.save()

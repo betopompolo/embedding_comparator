@@ -1,4 +1,3 @@
-import os
 from typing import Dict
 
 from models import Language, Partition
@@ -9,7 +8,7 @@ def decode_tensor_string(tensor) -> str:
 
 random_seed = 42
 encoder_seq_len = 512
-encoder_hidden_size = 768
+encoder_hidden_size = 384
 
 codesearchnet_dataset_len: Dict[Partition, Dict[Language, int]] = {
   "test": {

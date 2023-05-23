@@ -1,14 +1,15 @@
 from dataclasses import dataclass
 
 import tensorflow as tf
+from embedding_concat_default import EmbeddingConcatDefault
 from models import Embedding, EmbeddingGenerator, EmbeddingModel, Tokenizer
-from utils import encoder_seq_len
+from utils import encoder_seq_len, encoder_hidden_size
 
 from transformers import AutoConfig, TFAutoModel, AutoTokenizer
 
 
-code_config_default = AutoConfig.from_pretrained("microsoft/codebert-base", max_position_embeddings=encoder_seq_len)
-text_config_default = AutoConfig.from_pretrained("bert-base-uncased", max_position_embeddings=encoder_seq_len)
+code_config_default = AutoConfig.from_pretrained("microsoft/codebert-base", max_position_embeddings=encoder_seq_len, hidden_size=encoder_hidden_size)
+text_config_default = AutoConfig.from_pretrained("bert-base-uncased", max_position_embeddings=encoder_seq_len, hidden_size=encoder_hidden_size)
 
 @dataclass
 class EmbeddingGeneratorDefault(EmbeddingGenerator):

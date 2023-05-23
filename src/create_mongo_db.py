@@ -2,10 +2,9 @@ import more_itertools
 from pymongo import MongoClient
 from tqdm import tqdm
 
-from code_search_net_dataset import CodeSearchNetDataset
+from cs_net_datasets import CSNetPairDataset, CSNetQueryDataset
 from models import CodeCommentPair, DatasetRepository
 from orjson_parser import OrJsonParser
-from query_dataset import QueryDataset
 
 mongo_client = MongoClient('mongodb://127.0.0.1:27018/')
 cs_net_database = mongo_client['cs_net_mongo']
@@ -16,7 +15,7 @@ def get_collection(collection_name: str):
 
 def write_pairs():
   pairs_collection = get_collection('pairs')
-  pairs_repo: DatasetRepository[CodeCommentPair] = CodeSearchNetDataset(
+  pairs_repo: DatasetRepository[CodeCommentPair] = CSNetPairDataset(
     json_parser=OrJsonParser(),
   )
 
@@ -35,7 +34,7 @@ def write_pairs():
 
 def write_queries():
   collection = get_collection('queries')
-  query_dataset = QueryDataset()
+  query_dataset = CSNetQueryDataset()
 
   with tqdm(desc="Write queries.csv into mongo database", total=query_dataset.get_dataset_count()) as progress_bar:
     for queries_batch in more_itertools.chunked(query_dataset.get_dataset(), batch_size):

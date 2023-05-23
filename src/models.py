@@ -37,17 +37,36 @@ class ValidationResult:
 
 ItemType = TypeVar('ItemType')
 
-class EmbeddingComparator(metaclass=ABCMeta):
+class ResultAnalyzer(metaclass=ABCMeta):
+  def print_results(self, results: List[ValidationResult]):
+    total = len(results)
+    correct_results = len([result for result in results if self.is_result_correct(result.similarity, result.query.relevance)])
+    wrong_results = total - correct_results
+    print(f"""
+--------
+Results count: {len(results)}
+  correct: {correct_results}
+  wrong: {wrong_results}
+--------
+""")
+
   @abstractmethod
-  def fit(self, inputs: ModelInput, batch_size: int, epochs: int):
+  def is_result_correct(self, similarity: float, relevance: int) -> bool:
+    raise NotImplementedError()
+
+class EmbeddingComparator(metaclass=ABCMeta):
+  name = ""
+
+  @abstractmethod
+  def fit(self, inputs: ModelInput, batch_size: int, epochs: int, batch_count: int):
     raise NotImplementedError()
 
   @abstractmethod
-  def save(self, file_name: str):
+  def save(self):
     raise NotImplementedError()
   
   @abstractmethod
-  def load(self, file_name: str):
+  def load(self):
     raise NotImplementedError()
 
   @abstractmethod
