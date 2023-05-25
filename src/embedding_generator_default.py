@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 import tensorflow as tf
-from embedding_concat_default import EmbeddingConcatDefault
 from models import Embedding, EmbeddingGenerator, EmbeddingModel, Tokenizer
 from utils import encoder_seq_len, encoder_hidden_size
 

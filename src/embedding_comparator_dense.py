@@ -45,7 +45,8 @@ class EmbeddingComparatorDense(EmbeddingComparator):
     self.__model = tf.keras.models.load_model(model_path)
 
   def predict(self, inputs):
-    return self.__model.predict(inputs, verbose=0)[0][0] # type: ignore
+    prediction = self.__model.predict(inputs, verbose=0) # type: ignore
+    return prediction[0][0]
 
   def summary(self):
     self.__model.summary()
