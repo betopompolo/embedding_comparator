@@ -1,12 +1,13 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Generator, Generic, Iterable, List, Literal, Optional, Tuple, TypeVar, Union
-import tensorflow as tf
+from typing import (Any, Callable, Dict, Generator, Generic, Iterable, List,
+                    Literal, Optional, Tuple, TypedDict, TypeVar, Union)
 
+import tensorflow as tf
+from bson import ObjectId
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
 from transformers.modeling_tf_outputs import TFBaseModelOutput
-
 
 Embedding = tf.Tensor
 Tokenizer = PreTrainedTokenizer | PreTrainedTokenizerFast
@@ -35,6 +36,13 @@ class ValidationResult:
   code_url: str
   similarity: float
 
+# TODO: Replace ValidationResult with this?
+@dataclass
+class Result:
+  code_url: str
+  relevance: int
+  similarity: float
+
 ItemType = TypeVar('ItemType')
 
 class ResultAnalyzer(metaclass=ABCMeta):
@@ -58,7 +66,7 @@ class EmbeddingComparator(metaclass=ABCMeta):
   name = ""
 
   @abstractmethod
-  def fit(self, inputs: ModelInput, batch_size: int, epochs: int, batch_count: int):
+  def fit(self, inputs: ModelInput, epochs: int, batch_count: int):
     raise NotImplementedError()
 
   @abstractmethod
@@ -116,6 +124,31 @@ class EmbeddingConcat(metaclass=ABCMeta):
   @abstractmethod
   def concatenate(self, code_embedding: Embedding, text_embedding: Embedding, reshape: Optional[tuple] = None) -> Embedding:
     raise NotImplementedError()
+
+MongoId = Dict[Literal["_id"], str]
+class PairDbDoc(TypedDict):
+  _id: MongoId
+  code_tokens: List[str]
+  comment_tokens: List[str]
+  github_url: str
+  language: Language
+  partition: Partition
+
+class QueryRawDbDoc(TypedDict):
+  _id: MongoId
+  language: Language
+  query: str
+  relevance: int
+  url: str
+
+class QueryDbDoc(TypedDict):
+  _id: MongoId
+  language: Language
+  query: str
+  relevance: int
+  url: str
+  pair_doc: PairDbDoc
+
 
 # TODO: Review the models below 👇
 

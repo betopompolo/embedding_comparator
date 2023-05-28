@@ -59,5 +59,5 @@ class Training:
     target_spec = tf.TensorSpec(shape=(self.batch_size, ), dtype=tf.int32) # type: ignore
     embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
 
-    self.model.fit(embedding_dataset, batch_size=self.batch_size, epochs=1, batch_count=int(self.training_samples_count / self.batch_size))
+    self.model.fit(embedding_dataset, epochs=1, batch_count=int(self.training_samples_count / self.batch_size))
     self.model.save()

@@ -1,22 +1,27 @@
 from keras import Model, Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Flatten, Input
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
 import tensorflow as tf
 
 from models import EmbeddingComparator, ModelInput
 
+from utils import encoder_hidden_size, encoder_seq_len
+
 class EmbeddingComparatorDense(EmbeddingComparator):
   __model: Model
   name: str
 
-  def __init__(self, name: str) -> None:
+  def __init__(self, name: str, batch_size: int) -> None:
     self.name = name
+    self.batch_size = batch_size
+
     self.__model = Sequential([
+      Input(shape=(encoder_seq_len * encoder_hidden_size * 2), batch_size=batch_size),
       Dense(400, activation='tanh'),
-      Dense(400, activation='tanh'),
-      Dense(400, activation='tanh'),
-      Dense(400, activation='tanh'),
+      Dense(300, activation='tanh'),
+      Dense(200, activation='tanh'),
+      Dense(100, activation='tanh'),
       Dense(1, activation='relu')
     ])
 
@@ -25,13 +30,12 @@ class EmbeddingComparatorDense(EmbeddingComparator):
       loss=BinaryCrossentropy(),
     )
 
-  def fit(self, inputs: ModelInput, batch_size: int, epochs: int, batch_count: int):
+  def fit(self, inputs: ModelInput, epochs: int, batch_count: int):
     self.__model.fit(
       inputs,
-      batch_size=batch_size,
       epochs=epochs,
-      shuffle=False,
       steps_per_epoch=batch_count,
+      use_multiprocessing=True
     )
 
   def save(self):

@@ -1,20 +1,17 @@
+# TODO: Make it simpler and without CodeCommentPair abstraction
 import more_itertools
-from pymongo import MongoClient
 from tqdm import tqdm
 
 from cs_net_datasets import CSNetPairDataset, CSNetQueryDataset
 from models import CodeCommentPair, DatasetRepository
+from mongo_db_client import MongoDbClient
 from orjson_parser import OrJsonParser
 
-mongo_client = MongoClient('mongodb://127.0.0.1:27018/')
-cs_net_database = mongo_client['cs_net_mongo']
+db_client = MongoDbClient()
 batch_size = 128
 
-def get_collection(collection_name: str):
-  return cs_net_database.get_collection(collection_name) if collection_name in cs_net_database.list_collection_names() else cs_net_database.create_collection(collection_name)
-
 def write_pairs():
-  pairs_collection = get_collection('pairs')
+  pairs_collection = db_client.get_pairs_collection()
   pairs_repo: DatasetRepository[CodeCommentPair] = CSNetPairDataset(
     json_parser=OrJsonParser(),
   )
@@ -33,7 +30,7 @@ def write_pairs():
       progress_bar.update(len(documents))
 
 def write_queries():
-  collection = get_collection('queries')
+  collection = db_client.get_queries_collection()
   query_dataset = CSNetQueryDataset()
 
   with tqdm(desc="Write queries.csv into mongo database", total=query_dataset.get_dataset_count()) as progress_bar:
