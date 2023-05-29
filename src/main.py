@@ -39,14 +39,3 @@ pre_processer=PreProcesserDefault()
 #   query_repository=QueriesRepository(take=500),
 #   result_analyzer=ResultAnalyzerBinary(),
 # ).run()
-
-queries_repo = QueriesRepository()
-all_pairs_repo = ValidationPairsRepository()
-not_found_queries = []
-
-for query in tqdm(queries_repo.get_dataset(), total=queries_repo.get_dataset_count(), desc="Finding queries that aren't in the cs net dataset"):
-  if all_pairs_repo.search(query.url) is None:
-    not_found_queries.append(query)
-  
-result = queries_repo.mark_as_not_found(not_found_queries)
-print(f'{result.modified_count} queries were modified')
