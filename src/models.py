@@ -5,8 +5,7 @@ from typing import (Any, Callable, Dict, Generator, Generic, Iterable, List,
                     Literal, Optional, Tuple, TypedDict, TypeVar, Union)
 
 import tensorflow as tf
-from bson import ObjectId
-from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast # type: ignore
 from transformers.modeling_tf_outputs import TFBaseModelOutput
 
 Embedding = tf.Tensor
