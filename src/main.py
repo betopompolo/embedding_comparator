@@ -148,40 +148,39 @@ if mode == 'valid':
 elif mode == 'summary':
   get_model().summary()
 else:
-  experiment_parameters = experiments[5]
-  print(f'training {experiment_parameters.name}...')
-  training_model = get_model()
-  pairs = db_client.get_pairs_collection()
-  train_samples = 5000
-  num_epochs = 10
-  batch_size = 1
-  model_path = get_model_path(experiment_parameters)
+  for experiment_parameters in experiments:
+    print(f'training {experiment_parameters.name}...')
+    training_model = get_model()
+    pairs = db_client.get_pairs_collection()
+    train_samples = 5000
+    num_epochs = 10
+    batch_size = 1
 
-  def random_pair(exclude_id: MongoId) -> PairDbDoc:
-      return pairs.aggregate([
-          {'$sample': {'size': 1}},
-          {'$match': {'_id': {'$ne': exclude_id}}}
-      ]).next()
+    def random_pair(exclude_id: MongoId) -> PairDbDoc:
+        return pairs.aggregate([
+            {'$sample': {'size': 1}},
+            {'$match': {'_id': {'$ne': exclude_id}}}
+        ]).next()
 
-  def training_dataset():
-    pairs_query = {
-      "language": {
-        "$in": experiment_parameters.programming_languages
+    def training_dataset():
+      pairs_query = {
+        "language": {
+          "$in": experiment_parameters.programming_languages
+        }
       }
-    }
-    for pair_doc in pairs.find(pairs_query).limit(int(train_samples / 2)):
-      code_emb, comment_emb, target = generate_code_embeddings(pair_doc['code_tokens']), generate_comment_embeddings(pair_doc['comment_tokens']), tf.ones(shape=(batch_size, ))
-      yield ((code_emb, comment_emb), target)
+      for pair_doc in pairs.find(pairs_query).limit(int(train_samples / 2)):
+        code_emb, comment_emb, target = generate_code_embeddings(pair_doc['code_tokens']), generate_comment_embeddings(pair_doc['comment_tokens']), tf.ones(shape=(batch_size, ))
+        yield ((code_emb, comment_emb), target)
 
-      negative_doc = random_pair(exclude_id=pair_doc['_id'])
-      negative_code_emb, negative_comment_emb, negative_target = generate_code_embeddings(pair_doc['code_tokens']), generate_comment_embeddings(negative_doc['comment_tokens']), tf.zeros(shape=(batch_size, ))
-      yield ((negative_code_emb, negative_comment_emb), negative_target)
-  
-  embedding_spec = tf.TensorSpec(shape=(batch_size, encoder_seq_len, encoder_hidden_size), dtype=tf.float64) # type: ignore
-  target_spec = tf.TensorSpec(shape=(batch_size, ), dtype=tf.int32) # type: ignore
-  ds = tf.data.Dataset.from_generator(
-    training_dataset,
-    output_signature=((embedding_spec, embedding_spec), target_spec),
-  ).shuffle(buffer_size=int(train_samples * 0.2))
-  training_model.fit(ds, epochs=num_epochs, steps_per_epoch=train_samples/num_epochs)
-  training_model.save(model_path)
+        negative_doc = random_pair(exclude_id=pair_doc['_id'])
+        negative_code_emb, negative_comment_emb, negative_target = generate_code_embeddings(pair_doc['code_tokens']), generate_comment_embeddings(negative_doc['comment_tokens']), tf.zeros(shape=(batch_size, ))
+        yield ((negative_code_emb, negative_comment_emb), negative_target)
+    
+    embedding_spec = tf.TensorSpec(shape=(batch_size, encoder_seq_len, encoder_hidden_size), dtype=tf.float64) # type: ignore
+    target_spec = tf.TensorSpec(shape=(batch_size, ), dtype=tf.int32) # type: ignore
+    ds = tf.data.Dataset.from_generator(
+      training_dataset,
+      output_signature=((embedding_spec, embedding_spec), target_spec),
+    ).shuffle(buffer_size=int(train_samples * 0.1))
+    training_model.fit(ds, epochs=num_epochs, steps_per_epoch=train_samples/num_epochs)
+    training_model.save(get_model_path(experiment_parameters))
