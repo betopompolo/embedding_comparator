@@ -63,10 +63,10 @@ experiments = [
   ),
 ]
 
-def get_model(path: str | None = None):
-  if path is not None:
-    return cast(Model, tf.keras.models.load_model(path))
+def load_model(path: str):
+  return cast(Model, tf.keras.models.load_model(path))
 
+def get_model(params: ExperimentParameters): 
   hidden_layer_activation = 'relu'
   output_activation = 'sigmoid'
   code_input = Input(shape=transformer_embedding_shape, name="code_input")
@@ -102,7 +102,7 @@ def get_model(path: str | None = None):
     ], 
   }
 
-  hidden_layers = Sequential(dense_layers[experiment_parameters.num_hidden_layers], name="hidden_layers")
+  hidden_layers = Sequential(dense_layers[params.num_hidden_layers], name="hidden_layers")
 
   hidden = hidden_layers(merged)
   output = Dense(1, activation=output_activation, name="output")(hidden)
@@ -128,7 +128,7 @@ if mode == 'valid':
   for experiment_parameters in experiments:
     results = []
     model_path = get_model_path(experiment_parameters)
-    validation_model = get_model(path=model_path)
+    validation_model = load_model(model_path)
     queries = db_client.get_queries_collection().find({ "language": { "$in": experiment_parameters.programming_languages } })
     for query_doc in tqdm(queries, total=db_client.get_queries_collection().count_documents({}), desc=f"Validating {experiment_parameters.name}"):
       pair_doc = query_doc['pair_doc']
@@ -146,11 +146,10 @@ if mode == 'valid':
 
     write_results(experiment_parameters, results)
 elif mode == 'summary':
-  get_model().summary()
+  get_model(ExperimentParameters(name='summary', num_hidden_layers=8, programming_languages=['java', 'python'])).summary()
 else:
   for experiment_parameters in experiments:
-    print(f'training {experiment_parameters.name}...')
-    training_model = get_model()
+    training_model = get_model(experiment_parameters)
     pairs = db_client.get_pairs_collection()
     train_samples = 5000
     num_epochs = 10
