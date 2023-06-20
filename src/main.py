@@ -1,4 +1,3 @@
-from datetime import datetime
 import os
 from typing import List, cast
 from keras import Model, Sequential
@@ -13,7 +12,6 @@ from mongo_db_client import MongoDbClient
 from pre_processer_default import PreProcesserDefault
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
-from result_analyzers import ResultAnalyzerBinary
 
 from utils import encoder_hidden_size, encoder_seq_len
 
@@ -64,7 +62,6 @@ experiments = [
     programming_languages=['python'],
   ),
 ]
-experiment_parameters = experiments[2]
 
 def get_model(path: str | None = None):
   if path is not None:
@@ -122,39 +119,37 @@ def get_model(path: str | None = None):
 mode = os.getenv('MODE')
 mode = mode.lower() if mode != None else ''
 
-print(f'running {experiment_parameters.name}...')
-
 if mode == 'valid':
-  results_analyzer = ResultAnalyzerBinary()
-  results = []
-  model_path = get_model_path(experiment_parameters)
-  validation_model = get_model(path=model_path)
-
-  for query_doc in tqdm(db_client.get_queries_collection().find({ "language": { "$in": experiment_parameters.programming_languages } }), total=db_client.get_queries_collection().count_documents({}), desc="Validating CSNet queries"):
-      pair_doc = query_doc['pair_doc']
-      code_emb, comment_emb = generate_code_embeddings(
-          pair_doc['code_tokens']), generate_comment_embeddings(query_doc['query'].split())
-      prediction = validation_model.predict(
-          x=[code_emb, comment_emb], verbose="0")
-      similarity = prediction.item()
-
-      results.append(Result(
-          code_url=query_doc['url'],
-          relevance=query_doc['relevance'],
-          similarity=similarity,
-      ))
-
-  def write_results(result_list: List[Result]):
-    with open(f'results/{datetime.now().isoformat()}.csv', 'w') as file:
-      file.write(f'model: {model_path}\n')
+  def write_results(experiment: ExperimentParameters, result_list: List[Result]):
+    with open(f'results/{experiment.name}.csv', 'w') as file:
       for result in tqdm(result_list, desc='Writing results'):
         file.write(f'{result.similarity}, {result.relevance}\n')
 
-  write_results(results)
-  results_analyzer.print_results(results)
+  for experiment_parameters in experiments:
+    results = []
+    model_path = get_model_path(experiment_parameters)
+    validation_model = get_model(path=model_path)
+    queries = db_client.get_queries_collection().find({ "language": { "$in": experiment_parameters.programming_languages } })
+    for query_doc in tqdm(queries, total=db_client.get_queries_collection().count_documents({}), desc=f"Validating {experiment_parameters.name}"):
+      pair_doc = query_doc['pair_doc']
+      code_emb, comment_emb = generate_code_embeddings(
+        pair_doc['code_tokens']), generate_comment_embeddings(query_doc['query'].split())
+      prediction = validation_model.predict(
+        x=[code_emb, comment_emb], verbose="0")
+      similarity = prediction.item()
+
+      results.append(Result(
+        code_url=query_doc['url'],
+        relevance=query_doc['relevance'],
+        similarity=similarity,
+      ))
+
+    write_results(experiment_parameters, results)
 elif mode == 'summary':
   get_model().summary()
 else:
+  experiment_parameters = experiments[5]
+  print(f'training {experiment_parameters.name}...')
   training_model = get_model()
   pairs = db_client.get_pairs_collection()
   train_samples = 5000
