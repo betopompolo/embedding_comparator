@@ -5,6 +5,7 @@ from cross_validation import CrossValidation
 
 from experiment_parameters import ExperimentParameters
 from import_cs_net_pairs_to_mongo_db import ImportCSNetPairsToMongoDb
+from import_cs_net_queries_to_mongo_db import ImportCSNetQueriesToMongoDb
 from model_summary import ModelSummary
 from models import Runnable
 from query_validation import QueryValidation
@@ -56,7 +57,8 @@ mode_dict: Dict[str, Runnable] = {
   'train': Training(
     experiments
   ),
-  'import_cs_net_pairs': ImportCSNetPairsToMongoDb()
+  'import_cs_net_pairs': ImportCSNetPairsToMongoDb(),
+  'import_cs_net_queries': ImportCSNetQueriesToMongoDb(),
 }
 mode = os.getenv('MODE')
 mode = mode.lower() if mode != None else ''

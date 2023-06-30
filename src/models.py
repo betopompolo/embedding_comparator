@@ -1,7 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
-from typing import (Any, Callable, Dict, Generator, Generic, Iterable, List,
+from typing import (Any, Callable, Generic, Iterable, List,
                     Literal, Optional, Tuple, TypedDict, TypeVar, Union)
 from bson import ObjectId
 
@@ -11,24 +10,11 @@ from transformers.modeling_tf_outputs import TFBaseModelOutput
 
 Embedding = tf.Tensor
 Tokenizer = PreTrainedTokenizer | PreTrainedTokenizerFast
-Partition = Literal['train', 'valid', 'test']
-Language = Literal['python', 'java']
+Partition = Literal['train', 'test', 'valid']
+Language = Literal['ruby', 'go', 'java', 'javascript', 'php', 'python']
 ModelInput = Tuple[tf.Tensor, tf.Tensor]
 
-@dataclass
-class Query:
-  query: str
-  relevance: int
-  language: str
-  url: str
 
-@dataclass
-class ValidationResult:
-  query: Query
-  code_url: str
-  similarity: float
-
-# TODO: Replace ValidationResult with this?
 @dataclass
 class Result:
   code_url: str
@@ -36,23 +22,6 @@ class Result:
   similarity: float
 
 ItemType = TypeVar('ItemType')
-
-class ResultAnalyzer(metaclass=ABCMeta):
-  def print_results(self, results: List[ValidationResult]):
-    total = len(results)
-    correct_results = len([result for result in results if self.is_result_correct(result.similarity, result.query.relevance)])
-    wrong_results = total - correct_results
-    print(f"""
---------
-Results count: {len(results)}
-  correct: {correct_results}
-  wrong: {wrong_results}
---------
-""")
-
-  @abstractmethod
-  def is_result_correct(self, similarity: float, relevance: int) -> bool:
-    raise NotImplementedError()
 
 class EmbeddingComparator(metaclass=ABCMeta):
   name = ""
@@ -124,6 +93,19 @@ class CodeSearchNetPair(TypedDict):
   partition: Partition
   language: Language
 
+class CodeSearchNetQuery(TypedDict):
+  Language: str
+  Query: str
+  GitHubUrl: str
+  Relevance: int
+  Notes: Optional[str]
+
+class MongoDbQueryDoc(TypedDict):
+  language: Language
+  query: str
+  github_url: str
+  relevance: int
+
 MongoId = ObjectId
 class MongoDbPairDoc(TypedDict):
   _id: MongoId
@@ -148,15 +130,6 @@ class QueryDbDoc(TypedDict):
   url: str
   pair_doc: MongoDbPairDoc
 
-# TODO: Review this!!!
-# class CodeSearchNetPair(TypedDict):
-#   _id: MongoId
-#   language: Language
-#   query: str
-#   relevance: int
-#   url: str
-#   pair_doc: PairDbDoc
-
 
 # TODO: Review the models below 👇
 
@@ -167,17 +140,6 @@ class JsonParser(metaclass=ABCMeta):
   @abstractmethod
   def from_json(self, json_data: Union[str, bytes]) -> JsonData:
       pass
-
-
-class DatasetType(str, Enum):
-  train = 'train'
-  test = 'test'
-  validation = 'valid'
-
-
-class SupportedCodeLanguages(str, Enum):
-  java = 'java'
-  python = 'python'
 
 
 EmbeddingModel = Callable[[], TFBaseModelOutput]

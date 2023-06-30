@@ -1,18 +1,15 @@
 from dataclasses import dataclass
 import os
-from typing import Dict, Iterator, Literal
+from typing import Dict, Iterator
 import zipfile
 import tensorflow as tf
 
 
-from models import CodeSearchNetPair, JsonParser
+from models import CodeSearchNetPair, JsonParser, Language, Partition
 from orjson_parser import OrJsonParser
 from utils import decode_tensor_string
 
-CodeSearchNetPartition = Literal['train', 'test', 'valid']
-CodeSearchNetProgrammingLanguage = Literal['ruby', 'go', 'java', 'javascript', 'php', 'python']
-
-dataset_len_info: Dict[CodeSearchNetPartition, Dict[CodeSearchNetProgrammingLanguage, int]] = {
+dataset_len_info: Dict[Partition, Dict[Language, int]] = {
   "test": {
     "java": 26909,
     "python": 22176
@@ -29,10 +26,10 @@ dataset_len_info: Dict[CodeSearchNetPartition, Dict[CodeSearchNetProgrammingLang
 
 
 @dataclass
-class CodeSearchNetRepository:
+class CodeSearchNetPairsRepository:
   json_parser: JsonParser = OrJsonParser()
 
-  def read_dataset(self, language: CodeSearchNetProgrammingLanguage, partition: CodeSearchNetPartition) -> Iterator[CodeSearchNetPair]:
+  def read_dataset(self, language: Language, partition: Partition) -> Iterator[CodeSearchNetPair]:
     extract_dir = f'datasets/temp_{language}'
 
     if os.path.isdir(extract_dir) == False:
@@ -54,5 +51,5 @@ class CodeSearchNetRepository:
         'language': jsonl['language']
       }
 
-  def get_count_for(self, language: CodeSearchNetProgrammingLanguage, partition: CodeSearchNetPartition) -> int:
+  def get_count_for(self, language: Language, partition: Partition) -> int:
     return dataset_len_info[partition][language]

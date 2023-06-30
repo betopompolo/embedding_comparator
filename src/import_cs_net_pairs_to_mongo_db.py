@@ -3,8 +3,8 @@ from typing import List
 from bson import ObjectId
 import more_itertools
 from tqdm import tqdm
-from code_search_net_repository import CodeSearchNetProgrammingLanguage, CodeSearchNetPartition, CodeSearchNetRepository
-from models import MongoDbPairDoc, Runnable
+from code_search_net_pairs_repository import CodeSearchNetPairsRepository
+from models import Language, MongoDbPairDoc, Partition, Runnable
 
 from mongo_db_client import MongoDbClient
 
@@ -15,9 +15,9 @@ class ImportCSNetPairsToMongoDb(Runnable):
     mongo_db_client = MongoDbClient()
     batch_size = 128
     pairs_collection = mongo_db_client.get_pairs_collection()
-    repo = CodeSearchNetRepository()
-    partitions: List[CodeSearchNetPartition] = ['test', 'train', 'valid']
-    languages: List[CodeSearchNetProgrammingLanguage] = ['java', 'python']
+    repo = CodeSearchNetPairsRepository()
+    partitions: List[Partition] = ['test', 'train', 'valid']
+    languages: List[Language] = ['java', 'python']
 
     
     for language in languages:
@@ -35,21 +35,3 @@ class ImportCSNetPairsToMongoDb(Runnable):
             pairs_collection.insert_many(documents)
 
             progress_bar.update(len(documents))
-
-# TODO: Runnable for queries (raw and 'cs_query')
-def write_queries():
-  pass
-  # collection = db_client.get_queries_collection()
-  # query_dataset = CSNetQueryDataset()
-
-  # with tqdm(desc="Write queries.csv into mongo database", total=query_dataset.get_dataset_count()) as progress_bar:
-  #   for queries_batch in more_itertools.chunked(query_dataset.get_dataset(), batch_size):
-  #     documents = [{
-  #       "query": query.query,
-  #       "language": query.language,
-  #       "relevance": query.relevance,
-  #       "url": query.url,
-  #     } for query in queries_batch]
-
-  #     collection.insert_many(documents)
-  #     progress_bar.update(len(documents))
