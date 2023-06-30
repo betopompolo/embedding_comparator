@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import (Any, Callable, Dict, Generator, Generic, Iterable, List,
                     Literal, Optional, Tuple, TypedDict, TypeVar, Union)
+from bson import ObjectId
 
 import tensorflow as tf
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast # type: ignore
@@ -13,14 +14,6 @@ Tokenizer = PreTrainedTokenizer | PreTrainedTokenizerFast
 Partition = Literal['train', 'valid', 'test']
 Language = Literal['python', 'java']
 ModelInput = Tuple[tf.Tensor, tf.Tensor]
-
-@dataclass
-class CodeCommentPair:
-  id: str
-  code_tokens: List[str]
-  comment_tokens: List[str]
-  partition: Partition
-  language: Language
 
 @dataclass
 class Query:
@@ -123,9 +116,16 @@ class EmbeddingConcat(metaclass=ABCMeta):
   @abstractmethod
   def concatenate(self, code_embedding: Embedding, text_embedding: Embedding, reshape: Optional[tuple] = None) -> Embedding:
     raise NotImplementedError()
+  
+class CodeSearchNetPair(TypedDict):
+  url: str
+  code_tokens: List[str]
+  comment_tokens: List[str]
+  partition: Partition
+  language: Language
 
-MongoId = Dict[Literal["_id"], str]
-class PairDbDoc(TypedDict):
+MongoId = ObjectId
+class MongoDbPairDoc(TypedDict):
   _id: MongoId
   code_tokens: List[str]
   comment_tokens: List[str]
@@ -146,7 +146,16 @@ class QueryDbDoc(TypedDict):
   query: str
   relevance: int
   url: str
-  pair_doc: PairDbDoc
+  pair_doc: MongoDbPairDoc
+
+# TODO: Review this!!!
+# class CodeSearchNetPair(TypedDict):
+#   _id: MongoId
+#   language: Language
+#   query: str
+#   relevance: int
+#   url: str
+#   pair_doc: PairDbDoc
 
 
 # TODO: Review the models below 👇
@@ -172,8 +181,8 @@ class SupportedCodeLanguages(str, Enum):
 
 
 EmbeddingModel = Callable[[], TFBaseModelOutput]
-
-class CodeCommentPairRepository(metaclass=ABCMeta):
+  
+class Runnable(metaclass=ABCMeta):
   @abstractmethod
-  def batch(self, code_language: SupportedCodeLanguages, dataset_type: DatasetType, batch_size: int) -> Generator[List[CodeCommentPair], None, None]:
-      pass
+  def run(self):
+    pass

@@ -1,63 +1,68 @@
 from dataclasses import dataclass
-import random
 from typing import List
 
-import more_itertools
 import tensorflow as tf
+from embedding_generator_default import EmbeddingGeneratorDefault
+from experiment_parameters import ExperimentParameters
 
-from models import CodeCommentPair, DatasetRepository, EmbeddingConcat, EmbeddingGenerator, PreProcesser, EmbeddingComparator
-from utils import encoder_seq_len, encoder_hidden_size
+from models import EmbeddingGenerator, MongoId, MongoDbPairDoc, Runnable
+from mongo_db_client import MongoDbClient
+from pymongo.collection import Collection
+
+from pre_processer_default import PreProcesserDefault
+from utils import build_model, get_model_path, encoder_hidden_size, encoder_seq_len
+
 
 @dataclass
-class Training:
-  dataset_repository: DatasetRepository[CodeCommentPair]
-  pre_processer: PreProcesser
-  embedding_generator: EmbeddingGenerator
-  embedding_concat: EmbeddingConcat
-  model: EmbeddingComparator
-  batch_size: int
-  training_samples_count: int
-  negative_samples_count: int
+class Training(Runnable):
+  experiments: List[ExperimentParameters]
+  train_samples = 100 # TODO: Change this parameter
+  num_epochs = 10
+  batch_size = 1
+  db_client = MongoDbClient()
+
+  def run(self):   
+    for experiment_parameters in self.experiments:
+      training_model = build_model(experiment_parameters.num_hidden_layers)
+      embedding_generator = EmbeddingGeneratorDefault(
+        pre_processer=PreProcesserDefault()
+      )
+      
+      embedding_spec = tf.TensorSpec(shape=(self.batch_size, encoder_seq_len, encoder_hidden_size), dtype=tf.float64) # type: ignore
+      target_spec = tf.TensorSpec(shape=(self.batch_size, ), dtype=tf.int32) # type: ignore
+      dataset = tf.data.Dataset.from_generator(
+        lambda : self.generate_dataset(experiment_parameters, embedding_generator),
+        output_signature=((embedding_spec, embedding_spec), target_spec),
+      ).shuffle(buffer_size=int(self.train_samples * 0.1))
+
+      training_model.fit(dataset, epochs=self.num_epochs, steps_per_epoch=self.train_samples/self.num_epochs)
+      training_model.save(get_model_path(experiment_parameters))
+
+  def generate_dataset(self, experiment_parameters: ExperimentParameters, embedding_generator: EmbeddingGenerator):
+    pairs = self.db_client.get_pairs_collection()
+    pairs_query = {
+      "language": {
+        "$in": experiment_parameters.programming_languages
+      },
+      "partition": "train",
+    }
+
+    for pair_doc in pairs.find(pairs_query).limit(int(self.train_samples / 2)):
+      target_shape = (self.batch_size, )
+      code_emb, comment_emb, target = embedding_generator.from_code(pair_doc['code_tokens']), embedding_generator.from_text(pair_doc['comment_tokens']), tf.ones(shape=target_shape)
+      yield ((code_emb, comment_emb), target)
+
+      negative_doc = self.random_pair(pairs, exclude_id=pair_doc['_id'])
+      negative_code_emb, negative_comment_emb, negative_target = embedding_generator.from_code(negative_doc['code_tokens']), embedding_generator.from_text(pair_doc['comment_tokens']), tf.zeros(shape=target_shape)
+      yield ((negative_code_emb, negative_comment_emb), negative_target)
   
-  def run(self):
-    training_dataset = self.dataset_repository.get_dataset()
-
-    # TODO: Use negative_sample_count value here
-    def generate_negative_samples(pairs: List[CodeCommentPair]):
-      def get_random_index(exclude_index: int):
-        pairs_len = len(pairs)
-        index_list = [i for i in range(pairs_len) if i != exclude_index]
-        return index_list[random.randint(0, len(index_list) - 2)]
-
-      for index, pair in enumerate(pairs):
-        negative_pair = pairs[get_random_index(index)]
-        yield CodeCommentPair(
-          id=pair.id,
-          code_tokens=pair.code_tokens,
-          comment_tokens=negative_pair.comment_tokens,
-          partition=pair.partition,
-          language=pair.language,
-        )
-
-    def gen_and_concat_embeddings(pairs: List[CodeCommentPair]):
-      code_embedddings, text_embeddings = self.embedding_generator.from_code([self.pre_processer.process_code(pair.code_tokens) for pair in pairs]), self.embedding_generator.from_text([self.pre_processer.process_text(pair.comment_tokens) for pair in pairs])
-      concatenated = self.embedding_concat.concatenate(code_embedddings, text_embeddings, reshape=(self.batch_size, -1))
-      return concatenated
-
-    def embeddings_dataset_generator():
-      for group_pairs in more_itertools.grouper(training_dataset, self.batch_size, incomplete='ignore'):
-        batch_pairs = list(group_pairs)
-        batch_embeddings = gen_and_concat_embeddings(batch_pairs)
-        yield (batch_embeddings, self.embedding_generator.target(1, self.batch_size))
-        
-        negative_samples = list(generate_negative_samples(batch_pairs))
-        for batch_negative_pairs in more_itertools.chunked(negative_samples, self.batch_size):
-          batch_negative_embeddings = gen_and_concat_embeddings(batch_negative_pairs)
-          yield (batch_negative_embeddings, self.embedding_generator.target(0, self.batch_size))
-    
-    concat_embedding_spec = tf.TensorSpec(shape=(self.batch_size, encoder_seq_len * encoder_hidden_size * 2), dtype=tf.float64) # type: ignore
-    target_spec = tf.TensorSpec(shape=(self.batch_size, ), dtype=tf.int32) # type: ignore
-    embedding_dataset = tf.data.Dataset.from_generator(embeddings_dataset_generator, output_signature=(concat_embedding_spec, target_spec))
-
-    self.model.fit(embedding_dataset, epochs=1, batch_count=int(self.training_samples_count / self.batch_size))
-    self.model.save()
+  def random_pair(self, pairs_collection: Collection[MongoDbPairDoc], exclude_id: MongoId) -> MongoDbPairDoc:
+    return pairs_collection.aggregate([
+      {'$sample': {'size': 1}},
+      {'$match': {
+        "$and": [
+          { '_id': {'$ne': exclude_id} },
+          { 'partition': "train" },
+        ],
+      }}
+    ]).next()

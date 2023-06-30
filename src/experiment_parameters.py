@@ -7,7 +7,7 @@ from models import Language
 @dataclass
 class ExperimentParameters:
   name: str
-  num_hidden_layers: Literal[2] | Literal[4] | Literal[8]
+  num_hidden_layers: Literal[2, 4, 8]
   programming_languages: List[Language]
   
 

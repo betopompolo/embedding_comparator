@@ -1,6 +1,6 @@
 services:
-  cs-net-mongo:
-    image: 'mongo:latest'
+  code-search-net:
+    image: "mongo:latest"
     command: mongod --port 27018
     ports:
-        - '27018:27018'
+      - "27018:27018"
