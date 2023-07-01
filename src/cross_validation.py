@@ -27,7 +27,6 @@ class CrossValidation(Runnable):
   embedding_concat = EmbeddingConcatDefault()
 
   def run(self):
-    batch_size = 1
     for experiment in self.experiments:
       kfold = KFold(n_splits=10, shuffle=False)
       model = build_model(experiment.num_hidden_layers)
@@ -39,13 +38,11 @@ class CrossValidation(Runnable):
       )
 
       for train, test in kfold.split(inputs, targets):
-        for i in train:
-          model.fit(
-            inputs[i],
-            targets[i],
-            epochs=10,
-            batch_size=batch_size
-          )
+        model.fit(
+          inputs[train],
+          targets[train],
+          epochs=10,
+        )
         # scores = model.evaluate(inputs[test], targets[test], verbose="0")
         # print(f'Score: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1]*100}%')
 
@@ -77,16 +74,16 @@ class CrossValidation(Runnable):
   def generate_model_input(self, samples: List[CrossValidationSample], embedding_generator: EmbeddingGenerator):
     inputs = []
     targets = []
-    batch_size = 1
 
     for sample in tqdm(samples, desc="Generating inputs and targets"):
       concatenated = self.embedding_concat.concatenate(
         embedding_generator.from_code(sample['code_tokens']), 
         embedding_generator.from_text(sample['comment_tokens']),
-        reshape=(batch_size, -1),
+        reshape=(-1,),
       )
+      target = np.full((1,), sample['target'])
 
       inputs.append(concatenated)
-      targets.append(np.full((batch_size, ), sample['target']))
+      targets.append(target)
 
     return (np.array(inputs), np.array(targets))

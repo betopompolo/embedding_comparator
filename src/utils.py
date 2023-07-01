@@ -55,7 +55,7 @@ def build_model(num_hidden_layers: int):
       Precision(),
       Recall(),
       F1Score(
-        num_classes=2,
+        num_classes=1,
         average='macro',
         threshold=0.5,
       ),
