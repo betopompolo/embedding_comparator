@@ -1,9 +1,10 @@
+from datetime import datetime
 import random
 import numpy as np
 from dataclasses import dataclass
 from typing import List, Literal, TypedDict
-from sklearn.model_selection import KFold
-import tensorflow as tf
+from sklearn.model_selection import StratifiedKFold
+from keras import callbacks
 from tqdm import tqdm
 from embedding_concat_default import EmbeddingConcatDefault
 from embedding_generator_default import EmbeddingGeneratorDefault
@@ -12,7 +13,7 @@ from experiment_parameters import ExperimentParameters
 from models import EmbeddingGenerator, Partition, Runnable
 
 from mongo_db_client import MongoDbClient
-from utils import build_model, encoder_hidden_size, encoder_seq_len
+from utils import build_model
 
 class CrossValidationSample(TypedDict):
   code_tokens: List[str]
@@ -23,17 +24,26 @@ class CrossValidationSample(TypedDict):
 class CrossValidation(Runnable):
   db_client = MongoDbClient()
   experiments: List[ExperimentParameters]
-  validation_samples = 10
+  """
+  validation_samples=1000; epoch=5 -> 538s
+  """
+  validation_samples = 1000
   embedding_concat = EmbeddingConcatDefault()
 
   def run(self):
     for experiment in self.experiments:
-      kfold = KFold(n_splits=10, shuffle=False)
+      kfold = StratifiedKFold(
+        n_splits=10, 
+        shuffle=True, 
+        random_state=42,
+      )
       model = build_model(experiment.num_hidden_layers)
       embedding_generator = EmbeddingGeneratorDefault()
+      logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+      tensor_board_callback = callbacks.TensorBoard(log_dir=logdir)
 
       (inputs, targets) = self.generate_model_input(
-        self.get_samples('train') + self.get_samples('test'), 
+        self.get_samples('train') + self.get_samples('test'),
         embedding_generator,
       )
 
@@ -42,9 +52,9 @@ class CrossValidation(Runnable):
           inputs[train],
           targets[train],
           epochs=10,
+          callbacks=[tensor_board_callback]
         )
-        # scores = model.evaluate(inputs[test], targets[test], verbose="0")
-        # print(f'Score: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1]*100}%')
+        model.evaluate(inputs[test], targets[test], verbose=0) # type: ignore
 
   def get_samples(self, partition: Partition) -> List[CrossValidationSample]:
     pairs = list(
@@ -81,9 +91,8 @@ class CrossValidation(Runnable):
         embedding_generator.from_text(sample['comment_tokens']),
         reshape=(-1,),
       )
-      target = np.full((1,), sample['target'])
 
       inputs.append(concatenated)
-      targets.append(target)
+      targets.append(sample['target'])
 
     return (np.array(inputs), np.array(targets))

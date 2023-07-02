@@ -1,4 +1,12 @@
+import logging
 import os
+import tensorflow as tf
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+tf.get_logger().setLevel(logging.ERROR)
+tf.autograph.set_verbosity(0)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 import random
 from typing import Dict
 from cross_validation import CrossValidation
