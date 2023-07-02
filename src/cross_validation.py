@@ -27,7 +27,7 @@ class CrossValidation(Runnable):
   """
   validation_samples=1000; epoch=5 -> 538s
   """
-  validation_samples = 1000
+  validation_samples = 10
   embedding_concat = EmbeddingConcatDefault()
 
   def run(self):
@@ -39,8 +39,7 @@ class CrossValidation(Runnable):
       )
       model = build_model(experiment.num_hidden_layers)
       embedding_generator = EmbeddingGeneratorDefault()
-      logdir = "logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-      tensor_board_callback = callbacks.TensorBoard(log_dir=logdir)
+      tensor_board_callback = callbacks.TensorBoard(log_dir="logs/scalar/" + datetime.now().strftime("%Y%m%d-%H%M%S"))
 
       (inputs, targets) = self.generate_model_input(
         self.get_samples('train') + self.get_samples('test'),
@@ -54,7 +53,11 @@ class CrossValidation(Runnable):
           epochs=10,
           callbacks=[tensor_board_callback]
         )
-        model.evaluate(inputs[test], targets[test], verbose=0) # type: ignore
+        model.evaluate(
+          inputs[test], 
+          targets[test], 
+          verbose=0, # type: ignore
+        )
 
   def get_samples(self, partition: Partition) -> List[CrossValidationSample]:
     pairs = list(

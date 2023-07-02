@@ -1,7 +1,7 @@
-from keras import Sequential, Model, backend as K
-from keras.layers import Input, Dense
+from keras import Model, Sequential, backend as K
+from keras.layers import Dense, Input
 from keras.losses import BinaryCrossentropy
-from keras.metrics import Accuracy, Precision, Recall
+from keras.metrics import BinaryAccuracy, Precision, Recall
 from keras.optimizers import Adam
 
 from experiment_parameters import ExperimentParameters
@@ -10,19 +10,19 @@ def f1_score(y_true, y_pred):
   def calc_recall():
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-    recall_keras = true_positives / (possible_positives + K.epsilon())
-    return recall_keras
-
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
 
   def calc_precision():
     true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
     predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
-    precision_keras = true_positives / (predicted_positives + K.epsilon())
-    return precision_keras
-  
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
   precision = calc_precision()
   recall = calc_recall()
-  return 2 * ((precision * recall) / (precision + recall + K.epsilon()))
+
+  return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 def build_model(num_hidden_layers: int):
   input_shape = (encoder_seq_len * encoder_hidden_size * 2)
@@ -61,16 +61,18 @@ def build_model(num_hidden_layers: int):
     inputs=input,
     outputs=output,
   )
+
+  threshold = 0.5
   
   model.compile(
     optimizer=Adam(),
     loss=BinaryCrossentropy(),
     metrics=[
-      Accuracy(),
-      Precision(),
-      Recall(),
+      BinaryAccuracy(threshold=threshold),
+      Precision(thresholds=threshold),
+      Recall(thresholds=threshold),
       f1_score,
-    ]
+    ],
   )
 
   return model
