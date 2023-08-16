@@ -8,8 +8,16 @@ from utils import encoder_seq_len, encoder_hidden_size
 from transformers import AutoConfig, TFAutoModel, AutoTokenizer # type: ignore
 
 
-code_config_default = AutoConfig.from_pretrained("microsoft/codebert-base", max_position_embeddings=encoder_seq_len, hidden_size=encoder_hidden_size)
-text_config_default = AutoConfig.from_pretrained("bert-base-uncased", max_position_embeddings=encoder_seq_len, hidden_size=encoder_hidden_size)
+code_config_default = AutoConfig.from_pretrained(
+  "microsoft/codebert-base", 
+  max_position_embeddings=encoder_seq_len, 
+  hidden_size=encoder_hidden_size,
+)
+text_config_default = AutoConfig.from_pretrained(
+  "bert-base-uncased", 
+  max_position_embeddings=encoder_seq_len, 
+  hidden_size=encoder_hidden_size,
+)
 
 @dataclass
 class EmbeddingGeneratorDefault(EmbeddingGenerator):

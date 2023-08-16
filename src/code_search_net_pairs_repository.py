@@ -37,7 +37,7 @@ class CodeSearchNetPairsRepository:
       dataset_path = f'datasets/code_search_net/data/{language}.zip'
       with zipfile.ZipFile(dataset_path, 'r') as zip_ref:
         zip_ref.extractall(extract_dir)
-      print(f'Extracting {language} dataset was successfull')
+      print(f'Extracting {language} dataset was successful')
 
     dataset_dir = os.path.join(extract_dir, language, 'final', 'jsonl', partition)
     names = [os.path.join(dataset_dir, file_name) for file_name in os.listdir(dataset_dir) if file_name.endswith('.jsonl.gz')]

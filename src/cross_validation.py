@@ -8,6 +8,7 @@ from keras import callbacks
 from tqdm import tqdm
 from embedding_concat_default import EmbeddingConcatDefault
 from embedding_generator_default import EmbeddingGeneratorDefault
+from sklearn import preprocessing as pre
 
 from experiment_parameters import ExperimentParameters
 from models import EmbeddingGenerator, Partition, Runnable
@@ -24,10 +25,7 @@ class CrossValidationSample(TypedDict):
 class CrossValidation(Runnable):
   db_client = MongoDbClient()
   experiments: List[ExperimentParameters]
-  """
-  validation_samples=1000; epoch=5 -> 538s
-  """
-  validation_samples = 10
+  validation_samples = 1000
   embedding_concat = EmbeddingConcatDefault()
 
   def run(self):
@@ -39,7 +37,7 @@ class CrossValidation(Runnable):
       )
       model = build_model(experiment.num_hidden_layers)
       embedding_generator = EmbeddingGeneratorDefault()
-      tensor_board_callback = callbacks.TensorBoard(log_dir="logs/scalar/" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+      tensor_board_callback = callbacks.TensorBoard(log_dir="logs/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S"))
 
       (inputs, targets) = self.generate_model_input(
         self.get_samples('train') + self.get_samples('test'),
@@ -57,6 +55,7 @@ class CrossValidation(Runnable):
           inputs[test], 
           targets[test], 
           verbose=0, # type: ignore
+          callbacks=[tensor_board_callback]
         )
 
   def get_samples(self, partition: Partition) -> List[CrossValidationSample]:
@@ -87,6 +86,7 @@ class CrossValidation(Runnable):
   def generate_model_input(self, samples: List[CrossValidationSample], embedding_generator: EmbeddingGenerator):
     inputs = []
     targets = []
+    scaller = pre.MinMaxScaler(clip=True)
 
     for sample in tqdm(samples, desc="Generating inputs and targets"):
       concatenated = self.embedding_concat.concatenate(
@@ -94,8 +94,11 @@ class CrossValidation(Runnable):
         embedding_generator.from_text(sample['comment_tokens']),
         reshape=(-1,),
       )
+      scaller.fit(concatenated.numpy().reshape(-1, 1)) # type: ignore
 
       inputs.append(concatenated)
       targets.append(sample['target'])
+
+    inputs = [scaller.transform(input.numpy().reshape(-1, 1)) for input in tqdm(inputs, desc="Normalizing inputs")]
 
     return (np.array(inputs), np.array(targets))

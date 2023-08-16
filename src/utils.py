@@ -1,3 +1,4 @@
+from typing import Dict
 from keras import Model, Sequential, backend as K
 from keras.layers import Dense, Input
 from keras.losses import BinaryCrossentropy
@@ -28,7 +29,7 @@ def build_model(num_hidden_layers: int):
   input_shape = (encoder_seq_len * encoder_hidden_size * 2)
   hidden_layer_activation = 'relu'
   output_activation = 'sigmoid'
-  dense_layers = {
+  dense_layers: Dict = {
     2: [
       Dense(100, activation=hidden_layer_activation),
       Dense(50, activation=hidden_layer_activation),
@@ -68,7 +69,10 @@ def build_model(num_hidden_layers: int):
     optimizer=Adam(),
     loss=BinaryCrossentropy(),
     metrics=[
-      BinaryAccuracy(threshold=threshold),
+      BinaryAccuracy(
+        name=f"Accurary (with threshold of {threshold})", 
+        threshold=threshold,
+      ),
       Precision(thresholds=threshold),
       Recall(thresholds=threshold),
       f1_score,
