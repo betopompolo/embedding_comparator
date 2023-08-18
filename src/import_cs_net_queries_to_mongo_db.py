@@ -19,7 +19,7 @@ class ImportCSNetQueriesToMongoDb(Runnable):
     batch_size = 128
     queries_collection = mongo_db_client.get_queries_collection()
     cs_net_queries_repo = CodeSearchNetQueriesRepository()
-    languages: List[CodeSearchNetQueryProgrammingLanguage] = ['Java', 'Python']
+    languages: List[CodeSearchNetQueryProgrammingLanguage] = ['Python']
     
     for language in languages:
       with tqdm(desc=f"Importing code search net {language} queries to MongoDB", total=cs_net_queries_repo.get_count(language)) as progress_bar:

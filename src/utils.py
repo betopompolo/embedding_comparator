@@ -70,11 +70,11 @@ def build_model(num_hidden_layers: int):
     loss=BinaryCrossentropy(),
     metrics=[
       BinaryAccuracy(
-        name=f"Accurary (with threshold of {threshold})", 
+        name=f"Accuracy (with threshold of {threshold})", 
         threshold=threshold,
       ),
-      Precision(thresholds=threshold),
-      Recall(thresholds=threshold),
+      Precision(),
+      Recall(),
       f1_score,
     ],
   )

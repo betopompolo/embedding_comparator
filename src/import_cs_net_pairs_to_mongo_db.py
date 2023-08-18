@@ -17,7 +17,7 @@ class ImportCSNetPairsToMongoDb(Runnable):
     pairs_collection = mongo_db_client.get_pairs_collection()
     repo = CodeSearchNetPairsRepository()
     partitions: List[Partition] = ['test', 'train', 'valid']
-    languages: List[Language] = ['java', 'python']
+    languages: List[Language] = ['python']
 
     
     for language in languages:
