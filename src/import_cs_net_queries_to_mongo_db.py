@@ -14,7 +14,7 @@ class ImportCSNetQueriesToMongoDb(Runnable):
   def run(self):
     mongo_db_client = MongoDbClient()
     if self.is_pairs_collection_created(mongo_db_client) == False:
-      raise RuntimeError('pairs collection was not found in MongoDb')
+      raise RuntimeError('Pairs collection was not found in MongoDb. Try to run MODE=import_cs_net_pairs python src/main.py to create that collection')
     
     batch_size = 128
     queries_collection = mongo_db_client.get_queries_collection()
