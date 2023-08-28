@@ -1,5 +1,6 @@
 from typing import List, TypedDict
 from bson import ObjectId
+import numpy as np
 from pymongo import MongoClient
 from pymongo.collection import Collection
 
@@ -15,6 +16,7 @@ class MongoDbPairDoc(TypedDict):
   language: CSNetCodeLanguage
   partition: CSNetPartition
 
+
 class MongoDbQueryDoc(TypedDict):
   pair_id: MongoId
   language: CSNetCodeLanguage
@@ -22,6 +24,7 @@ class MongoDbQueryDoc(TypedDict):
   query: str
   relevance: int
   notes: str
+
 
 class MongoDbClient:
   mongo_client = MongoClient('mongodb://127.0.0.1:27018/')
@@ -32,4 +35,3 @@ class MongoDbClient:
   
   def get_queries_collection(self) -> Collection[MongoDbQueryDoc]:
     return self.cs_net_database.get_collection('queries')
-

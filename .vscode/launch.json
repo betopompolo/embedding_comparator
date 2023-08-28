@@ -10,10 +10,7 @@
       "request": "launch",
       "program": "src/main.py",
       "console": "integratedTerminal",
-      "justMyCode": true,
-      "env": {
-        "MODE": "kvalid"
-      }
+      "justMyCode": true
     }
   ]
 }

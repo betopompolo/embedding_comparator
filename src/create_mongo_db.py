@@ -5,13 +5,14 @@ import more_itertools
 from tqdm import tqdm
 from cs_net_parser import CSNetCodeLanguage, CSNetParser, CSNetPartition, CSNetQuery, CSNetQueryLanguage, CSNetSample
 from mongo_db_client import MongoDbClient, MongoDbPairDoc, MongoDbQueryDoc, MongoId
+from runnable import Runnable
 
 
 class PairFilter(TypedDict):
   partition: CSNetPartition
   language: CSNetCodeLanguage
 
-class CreateMongoDb:
+class CreateMongoDb(Runnable):
   def __init__(self, pair_filters: List[PairFilter]) -> None:
     self.pair_filters = pair_filters
     self.cs_net_parser = CSNetParser()
