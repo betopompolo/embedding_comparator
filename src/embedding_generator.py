@@ -2,9 +2,9 @@ from typing import Iterator, List, TypedDict
 import more_itertools
 import numpy as np
 import tensorflow as tf
-from transformers import AutoTokenizer, TFAutoModel
+from transformers import AutoTokenizer, TFAutoModel, AutoConfig
 
-from mongo_db_client import MongoDbPairDoc
+from mongo_db_client import MongoDbClient, MongoDbPairDoc
 
 class EmbeddingPairBatch(TypedDict):
   pairs_ids: List[str]
@@ -15,11 +15,18 @@ class EmbeddingPairBatch(TypedDict):
 class EmbeddingGenerator:
   def __init__(self, code_embedding_model="microsoft/codebert-base", comment_embedding_model="bert-large-uncased") -> None:
     self.embedding_max_length = 256
+    self.hidden_size = 480
     
-    self.code_embedding_model = TFAutoModel.from_pretrained(code_embedding_model)
+    self.code_embedding_model = TFAutoModel.from_config(AutoConfig.from_pretrained(
+      code_embedding_model,
+      hidden_size=self.hidden_size,
+    ))
     self.code_embedding_tokenizer = AutoTokenizer.from_pretrained(code_embedding_model)
 
-    self.comment_embedding_model = TFAutoModel.from_pretrained(comment_embedding_model)
+    self.comment_embedding_model = TFAutoModel.from_config(AutoConfig.from_pretrained(
+      comment_embedding_model,
+      hidden_size=self.hidden_size,
+    ))
     self.comment_embedding_tokenizer = AutoTokenizer.from_pretrained(comment_embedding_model)
 
   def from_pairs(self, pairs: List[MongoDbPairDoc], batch_size=100) -> Iterator[EmbeddingPairBatch]:
@@ -45,18 +52,18 @@ class EmbeddingGenerator:
       }
 
   def from_sentences(self, sentences: List[str], tokenizer, model):
-      encoded_input = tokenizer(
-          sentences, 
-          padding='max_length', 
-          max_length=self.embedding_max_length,
-          truncation=True, 
-          return_tensors='tf',
-      )
-      model_output = model(**encoded_input, return_dict=True)
+    encoded_input = tokenizer(
+      sentences, 
+      padding='max_length', 
+      max_length=self.embedding_max_length,
+      truncation=True, 
+      return_tensors='tf',
+    )
+    model_output = model(**encoded_input, return_dict=True)
 
-      embeddings = self.__mean_pooling(model_output, encoded_input['attention_mask'])
-      embeddings = tf.math.l2_normalize(embeddings, axis=1)
-      return embeddings
+    embeddings = self.__mean_pooling(model_output, encoded_input['attention_mask'])
+    embeddings = tf.math.l2_normalize(embeddings, axis=1)
+    return embeddings
   
   def __mean_pooling(self, model_output, attention_mask):
     token_embeddings = model_output.last_hidden_state

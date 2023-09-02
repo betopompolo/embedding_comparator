@@ -7,7 +7,9 @@ import tensorflow as tf
 from create_embedding_db import CreateEmbeddingDb
 
 from create_mongo_db import CreateMongoDb
+from models import build_dense_model
 from runnable import Runnable
+from train import Train
 
 def disable_lib_logs():
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -16,8 +18,17 @@ def disable_lib_logs():
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
     transformers_logging.set_verbosity_error()
 
+def show_menu(menu: Dict[str, Runnable]):
+    terminal_menu = TerminalMenu(title="Select an option", menu_entries=menu.keys())
+    selected_option_index: int = cast(int, terminal_menu.show())
+    assert isinstance(selected_option_index, int), "Invalid option"
+
+    option_handler_key = list(menu.keys())[selected_option_index]
+    menu[option_handler_key].run()
+
 def run():
-    menu: Dict[str, Runnable] = {
+    disable_lib_logs()
+    show_menu({
         "Create Mongo database": CreateMongoDb(pair_filters=[
             { "language": 'python', "partition": 'test' },
             { "language": 'python', "partition": 'train' },
@@ -28,16 +39,12 @@ def run():
             { "language": 'python', 'partition': 'test', 'count': 4000 },
             { "language": 'python', 'partition': 'valid', 'count': 4000 },
         ]),
-    }
+        "Train": Train(
+            model=build_dense_model(2),
+            train_count=20000,
+        )
+    })
 
-    terminal_menu = TerminalMenu(title="Select an option", menu_entries=menu.keys())
-    selected_option_index: int = cast(int, terminal_menu.show())
-    assert isinstance(selected_option_index, int), "Invalid option"
     
-    option_handler_key = list(menu.keys())[selected_option_index]
-    menu[option_handler_key].run()
-
-
 if __name__ == "__main__":
-    disable_lib_logs()
     run()
