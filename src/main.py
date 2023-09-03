@@ -7,7 +7,7 @@ import tensorflow as tf
 from create_embedding_db import CreateEmbeddingDb
 
 from create_mongo_db import CreateMongoDb
-from models import build_dense_model
+from models import build_dense_model, build_siamese_model, dual_encoder_model
 from runnable import Runnable
 from train import Train
 
@@ -40,9 +40,10 @@ def run():
             { "language": 'python', 'partition': 'valid', 'count': 4000 },
         ]),
         "Train": Train(
-            model=build_dense_model(2),
+            model=dual_encoder_model(name="dual_encoder"),
             train_count=20000,
-        )
+            valid_count=4000,
+        ),
     })
 
     
