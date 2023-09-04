@@ -7,6 +7,7 @@ import tensorflow as tf
 from create_embedding_db import CreateEmbeddingDb
 
 from create_mongo_db import CreateMongoDb
+from cs_net_validation import CSNetValidation
 from models import build_dense_model, build_siamese_model, dual_encoder_model
 from runnable import Runnable
 from train import Train
@@ -43,6 +44,9 @@ def run():
             model=dual_encoder_model(name="dual_encoder"),
             train_count=20000,
             valid_count=4000,
+        ),
+        "CSNet Validation": CSNetValidation(
+            model_name='dense_2-20230903-171323',
         ),
     })
 

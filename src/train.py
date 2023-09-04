@@ -1,7 +1,7 @@
 import os
 import tensorflow as tf
 from datetime import datetime
-from typing import Iterator, List
+from typing import List
 from keras import Model, callbacks
 from embedding_dataset import EmbeddingDataset
 from mongo_db_client import MongoDbClient, MongoDbPairDoc
@@ -13,12 +13,7 @@ class Train(Runnable):
     self.model = model
     self.train_count = train_count
     self.valid_count = valid_count
-    
-  def get_size(self, dataset: tf.data.Dataset) -> int:
-    size = 0
-    for _ in dataset:
-      size += 1
-    return size
+
 
   def run(self):
     run_timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -41,7 +36,7 @@ class Train(Runnable):
       batch_size=batch_size,
       callbacks=[tensor_board_callback]
     )
-    self.model.save(os.path.join(os.path.abspath(os.curdir), f'models/{self.model.name}-{run_timestamp}'))
+    self.model.save(os.path.join(os.path.abspath(os.curdir), f'models/{self.model.name}'))
 
 
   def create_tf_dataset(self, pairs: List[MongoDbPairDoc]) -> tf.data.Dataset:
@@ -61,6 +56,7 @@ class Train(Runnable):
       "code_embedding": tf.float32, 
       "comment_embedding": tf.float32,
     })
+  
   
   def generate_dataset_with_negative_samples(self, positive_samples: tf.data.Dataset) -> tf.data.Dataset:
     negative_samples = positive_samples.shuffle(100)

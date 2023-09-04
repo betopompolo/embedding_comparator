@@ -1,7 +1,7 @@
 from contextlib import AbstractContextManager
 import os
 from types import TracebackType
-from typing import Literal, TypedDict, cast
+from typing import Iterator, List, Literal, TypedDict, cast
 import h5py
 from h5py import Group
 import numpy as np
@@ -61,6 +61,25 @@ class EmbeddingDataset(AbstractContextManager):
       'code_embedding': code_embedding[()], # type: ignore
       'comment_embedding': comment_embedding[()], # type: ignore
     }
+  
+  def list(self) -> Iterator[EmbeddingPair]:
+    self.__assert_db()
+
+    code_embeddings_group = self.__get_db_group(self.code_embeddings_group)
+    comments_embeddings_group = self.__get_db_group(self.comment_embeddings_group)
+
+    for pair_id in code_embeddings_group.keys():
+      code_embedding = code_embeddings_group.get(pair_id)
+      comment_embedding = comments_embeddings_group.get(pair_id)
+
+      if code_embedding is None or comment_embedding is None:
+        continue
+
+      yield {
+        'id': pair_id,
+        'code_embedding': code_embedding[()], # type: ignore
+        'comment_embedding': comment_embedding[()], # type: ignore
+      }
 
       
   def get_dataset_full_path(self):
