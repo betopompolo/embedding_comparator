@@ -8,8 +8,8 @@ from create_embedding_db import CreateEmbeddingDb
 
 from create_mongo_db import CreateMongoDb
 from cs_net_validation import CSNetValidation
-from models import build_dense_model, build_siamese_model, dual_encoder_model
-from plot_embeddings import PlotEmbeddings
+from models import build_dense_model, build_siamese_model, dual_encoder_model, multilayer_raw
+from data_analysis import DataAnalysis
 from runnable import Runnable
 from train import Train
 
@@ -41,19 +41,20 @@ def run():
             {"language": 'python', "partition": 'valid'},
         ]),
         "Create Embeddings database": CreateEmbeddingDb(filters=[
-            {"language": 'python', 'partition': 'train', 'count': 20000},
-            {"language": 'python', 'partition': 'test', 'count': 4000},
-            {"language": 'python', 'partition': 'valid', 'count': 4000},
+            {"language": 'python', 'partition': 'train', 'count': 10000},
+            {"language": 'python', 'partition': 'test', 'count': 2000},
+            {"language": 'python', 'partition': 'valid', 'count': 2000},
         ]),
         "Train": Train(
-            model=dual_encoder_model(name="dual_encoder"),
+            model=build_dense_model(4, 'dense_4'),
             train_count=20000,
             valid_count=4000,
+            embeddings_dataset_name='embeddings_raw'
         ),
         "CSNet Validation": CSNetValidation(
             model_name='dense_2-20230903-171323',
         ),
-        "Plot embeddings": PlotEmbeddings(),
+        "Data Analysis": DataAnalysis(),
     })
 
 

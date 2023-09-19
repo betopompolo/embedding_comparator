@@ -1,6 +1,6 @@
 datasets
 models
-plots
+analysis
 /.idea/
 src/experiment_report.py
 resources/.DS_Store

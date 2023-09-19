@@ -1,17 +1,12 @@
 from contextlib import AbstractContextManager
 import os
 from types import TracebackType
-from typing import Iterator, List, Literal, TypedDict, cast
+from typing import Iterator, Literal, cast
 import h5py
 from h5py import Group
 import numpy as np
 
-from embedding_generator import EmbeddingPairBatch
-
-class EmbeddingPair(TypedDict):
-  id: str
-  code_embedding: np.ndarray
-  comment_embedding: np.ndarray
+from embedding_generator import EmbeddingPair, EmbeddingPairBatch
 
 
 class EmbeddingDataset(AbstractContextManager):

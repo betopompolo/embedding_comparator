@@ -4,34 +4,28 @@ from datetime import datetime
 from typing import List
 from keras import Model, callbacks
 from embedding_dataset import EmbeddingDataset
-from mongo_db_client import MongoDbClient, MongoDbPairDoc
 from runnable import Runnable
 
 
 class Train(Runnable):
-  def __init__(self, model: Model, train_count: int, valid_count: int) -> None:
+  def __init__(self, model: Model, train_count: int, valid_count: int, embeddings_dataset_name: str) -> None:
     self.model = model
     self.train_count = train_count
     self.valid_count = valid_count
+    self.embeddings_dataset_name = embeddings_dataset_name
 
 
   def run(self):
     run_timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     tensor_board_dir = os.path.join(os.path.abspath(os.curdir), 'logs', self.model.name, run_timestamp)
     tensor_board_callback = callbacks.TensorBoard(log_dir=tensor_board_dir)
-    mongo_db = MongoDbClient()
     batch_size = 100
 
-    train_pairs = list(mongo_db.get_pairs_collection().find({ "partition": "train", "language": "python" }).limit(self.train_count))
-    positive_pairs_db = self.create_tf_dataset(train_pairs)
-    train_dataset = self.generate_dataset_with_negative_samples(positive_samples=positive_pairs_db).batch(batch_size).shuffle(100)
-
-    validation_pairs = list(mongo_db.get_pairs_collection().find({ "partition": "valid", "language": "python" }).limit(self.valid_count))
-    valid_dataset = self.generate_dataset_with_negative_samples(self.create_tf_dataset(validation_pairs)).batch(batch_size)
+    positive_embeddings = self.create_tf_dataset()
+    dataset = self.generate_dataset_with_negative_samples(positive_embeddings).shuffle(buffer_size=100).batch(batch_size)
 
     self.model.fit(
-      train_dataset,
-      validation_data=valid_dataset,
+      dataset,
       epochs=10,
       batch_size=batch_size,
       callbacks=[tensor_board_callback]
@@ -39,17 +33,13 @@ class Train(Runnable):
     self.model.save(os.path.join(os.path.abspath(os.curdir), f'models/{self.model.name}'))
 
 
-  def create_tf_dataset(self, pairs: List[MongoDbPairDoc]) -> tf.data.Dataset:
+  def create_tf_dataset(self) -> tf.data.Dataset:
     def dataset_generator():
-      with EmbeddingDataset('embeddings') as embedding_dataset:
-        for pair in pairs:
-          embedding = embedding_dataset.get(pair["id"])
-          if embedding is None:
-            raise ValueError(f"{pair['id']} from partition {pair['partition']} was not found")
-
+      with EmbeddingDataset(self.embeddings_dataset_name) as embedding_dataset:
+        for embedding_pair in embedding_dataset.list():
           yield {
-            "code_embedding": embedding["code_embedding"],
-            "comment_embedding": embedding["comment_embedding"],
+            "code_embedding": embedding_pair["code_embedding"],
+            "comment_embedding": embedding_pair["comment_embedding"],
           }
     
     return tf.data.Dataset.from_generator(dataset_generator, output_types={
@@ -59,7 +49,7 @@ class Train(Runnable):
   
   
   def generate_dataset_with_negative_samples(self, positive_samples: tf.data.Dataset) -> tf.data.Dataset:
-    negative_samples = positive_samples.shuffle(100)
+    negative_samples = positive_samples.shuffle(buffer_size=100)
     def generator():
       for positive_sample, negative_sample in zip(positive_samples, negative_samples):
         yield {

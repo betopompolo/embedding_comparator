@@ -1,7 +1,7 @@
 from typing import Dict, List, Literal
 import tensorflow as tf
 from keras import Model, Sequential
-from keras.layers import Dense, Input, Concatenate, BatchNormalization, Dot, Add, LayerNormalization, Dropout, Layer
+from keras.layers import Dense, Input, Concatenate, BatchNormalization, Dot, Add, LayerNormalization, Dropout, Conv1D, AveragePooling1D, Flatten
 from keras.losses import BinaryCrossentropy, Loss, losses_utils, CosineSimilarity
 from keras.metrics import BinaryAccuracy, Precision, Recall
 from keras.optimizers import Adam, RMSprop
@@ -145,6 +145,76 @@ def dual_encoder_model(name: str, num_projection_layers=1, projection_dims=256, 
   model.compile(
     optimizer=Adam(),
     loss=CosineSimilarity(),
+    metrics=[
+      BinaryAccuracy(),
+      Precision(name="precision"),
+      Recall(name="recall"),
+      # f1_score, # TODO: Reactivate
+    ],
+  )
+
+  return model
+
+def multilayer_raw(model_name: str, code_embedding_shape: tuple, comment_embedding_shape: tuple, num_hidden_layers: Literal[2, 4, 8]):
+  dense_layers: Dict[int, List] = {
+    2: [
+      Dense(100, activation=hidden_layer_activation),
+      Dense(50, activation=hidden_layer_activation),
+    ],
+    4: [
+      Dense(400, activation=hidden_layer_activation),
+      Dense(200, activation=hidden_layer_activation),
+      Dense(100, activation=hidden_layer_activation),
+      Dense(50, activation=hidden_layer_activation),
+    ], 
+    8: [
+      Dense(800, activation=hidden_layer_activation),
+      Dense(600, activation=hidden_layer_activation),
+      Dense(500, activation=hidden_layer_activation),
+      Dense(400, activation=hidden_layer_activation),
+      Dense(300, activation=hidden_layer_activation),
+      Dense(200, activation=hidden_layer_activation),
+      Dense(100, activation=hidden_layer_activation),
+      Dense(50, activation=hidden_layer_activation),
+    ], 
+  }
+
+  def pre_process_layer(input_layer):
+    return Sequential([
+      input_layer,
+      Conv1D(4, 128, activation=hidden_layer_activation),
+      AveragePooling1D(pool_size=2),
+      Conv1D(16, 128, activation=hidden_layer_activation),
+      AveragePooling1D(pool_size=2),
+      Flatten(),
+      BatchNormalization(),
+      Dense(10, activation=hidden_layer_activation)
+    ])
+
+  code_input = Input(
+    shape=code_embedding_shape,
+    name="code_embedding",
+  )
+  comment_input = Input(
+    shape=comment_embedding_shape,
+    name="comment_embedding",
+  )
+
+  code_pre_process = pre_process_layer(code_input)
+  comment_pre_process = pre_process_layer(comment_input)
+
+  concatenated_inputs = Concatenate()([code_pre_process, comment_pre_process])
+  hidden_layers = Sequential(dense_layers[num_hidden_layers], name="hidden_layers")(concatenated_inputs)
+  output = Dense(1, activation=output_activation, name="output")(hidden_layers)
+  model = Model(
+    inputs=[code_input, comment_input],
+    outputs=output,
+    name=model_name
+  )
+
+  model.compile(
+    optimizer=Adam(),
+    loss=BinaryCrossentropy(),
     metrics=[
       BinaryAccuracy(),
       Precision(name="precision"),
