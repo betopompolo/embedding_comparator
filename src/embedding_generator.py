@@ -36,8 +36,8 @@ class EmbeddingGenerator:
 
   def from_pairs(self, pairs: List[MongoDbPairDoc], batch_size=100) -> Iterator[EmbeddingPairBatch]:
     for batch_pairs in more_itertools.chunked(pairs, batch_size):
-      codes = [self.__pre_process_tokens(pair['code_tokens']) for pair in batch_pairs]
-      comments = [self.__pre_process_tokens(pair['comment_tokens']) for pair in batch_pairs]
+      codes = [self.pre_process_tokens(pair['code_tokens']) for pair in batch_pairs]
+      comments = [self.pre_process_tokens(pair['comment_tokens']) for pair in batch_pairs]
 
       codes_embeddings = self.from_sentences(
         sentences=codes,
@@ -58,8 +58,8 @@ class EmbeddingGenerator:
 
   def from_pairs_raw(self, pairs: List[MongoDbPairDoc], batch_size=100) -> Iterator[EmbeddingPairBatch]:
     for batch_pairs in more_itertools.chunked(pairs, batch_size):
-      codes = [self.__pre_process_tokens(pair['code_tokens']) for pair in batch_pairs]
-      comments = [self.__pre_process_tokens(pair['comment_tokens']) for pair in batch_pairs]
+      codes = [self.pre_process_tokens(pair['code_tokens']) for pair in batch_pairs]
+      comments = [self.pre_process_tokens(pair['comment_tokens']) for pair in batch_pairs]
 
       codes_embeddings = self.from_sentences(
         sentences=codes,
@@ -99,13 +99,14 @@ class EmbeddingGenerator:
     embeddings = tf.math.l2_normalize(embeddings, axis=1)
     return embeddings
   
+  def pre_process_tokens(self, tokens) -> str:
+    parsed = ' '.join(tokens).replace('\n', ' ')
+    parsed = ' '.join(parsed.strip().split())
+    return parsed
+  
   def __mean_pooling(self, model_output, attention_mask):
     token_embeddings = model_output.last_hidden_state
     input_mask_expanded = tf.cast(tf.tile(tf.expand_dims(attention_mask, -1), [1, 1, token_embeddings.shape[-1]]), tf.float32)
     return tf.math.reduce_sum(token_embeddings * input_mask_expanded, 1) / tf.math.maximum(tf.math.reduce_sum(input_mask_expanded, 1), 1e-9)
   
-  def __pre_process_tokens(self, tokens) -> str:
-    parsed = ' '.join(tokens).replace('\n', ' ')
-    parsed = ' '.join(parsed.strip().split())
-    return parsed
   
