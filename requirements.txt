@@ -6,3 +6,5 @@ tensorflow
 tensorflow-macos
 tensorflow-metal
 sentence-transformers
+plotly==5.18.0
+nbformat
