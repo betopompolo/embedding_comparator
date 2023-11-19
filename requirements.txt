@@ -8,3 +8,5 @@ tensorflow-metal
 sentence-transformers
 plotly==5.18.0
 nbformat
+kaleido
+more-itertools
