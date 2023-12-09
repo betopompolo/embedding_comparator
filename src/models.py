@@ -40,8 +40,7 @@ def build_dense_model(num_hidden_layers: Literal[2, 4, 6], input_shape, model_na
   )
 
   concatenated_inputs = Concatenate()([code_input, comment_input])
-  dropout = Dropout(0.2)(concatenated_inputs)
-  hidden_layers = Sequential(dense_layers[num_hidden_layers], name="hidden_layers")(dropout)
+  hidden_layers = Sequential(dense_layers[num_hidden_layers], name="hidden_layers")(concatenated_inputs)
   output = Dense(1, activation=output_activation, name="output")(hidden_layers)
   model = Model(
     inputs=[code_input, comment_input],
